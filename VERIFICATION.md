@@ -11,4 +11,5 @@
 - Public song data is shown immediately from the latest bundled or browser-cached copy; successful sheet responses replace it. Names, contact suffixes and registration messages are not included in this public cache.
 - The blocked-origin local browser test showed all four songs after CONNECT failure, with the last-confirmed time, a latest-query-delay notice and an enabled refresh button.
 - Frontend JavaScript syntax checks passed.
-- Post-deployment verification of the latest reconnect change is pending Pages publication.
+- Production Pages deployment succeeded. A fresh browser load immediately displayed all four songs from the saved copy, then changed to the live-confirmed updated state after a successful sheet response.
+- All five requested wording changes were verified in the deployed DOM; no browser warnings or errors were reported.
