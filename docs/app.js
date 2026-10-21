@@ -7,6 +7,7 @@
   const storageKey = `jukebox:${config.eventId}:${api.preview ? 'preview' : config.endpoint}`;
   let issuedTicket = null, busy = false, soldOut = false, restoring = false, toastTimer;
   let restoreRequest = null, restoreInteractive = false;
+  let cutArmed = false, cutGesture = null;
   function readState() { try { return JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch { return null; } }
   function saveState(value) { try { localStorage.setItem(storageKey, JSON.stringify(value)); return true; } catch { return false; } }
   let local = readState() || {};
@@ -43,7 +44,9 @@
     $('ticket').classList.toggle('checked', ticket.checked === true);
     $('managerButton').hidden = false;
     $('managerButton').disabled = ticket.checked === true;
-    $('managerButton').textContent = ticket.checked ? '확인 완료 ✓' : '매니저 확인';
+    $('managerButton').textContent = ticket.checked ? '확인 완료 ✓' : cutArmed ? '매니저 확인 해제' : '매니저 확인';
+    if (ticket.checked) setCutArmed(false);
+    $('cutStatus').textContent = ticket.checked ? '입장 확인 완료' : cutArmed ? '빛나는 점선을 한쪽 끝에서 반대쪽 끝까지 그어주세요.' : '';
     local.ticket = ticket;
     saveState(local);
     const serial = ticket.preview ? 'SAMPLE' : `No. ${String(ticket.serial).padStart(4,'0')}`;
@@ -86,6 +89,8 @@
   // Only a successful, explicit missing-record response may clear a cached ticket.
   function clearDeletedTicket() {
     issuedTicket = null;
+    setCutArmed(false);
+    $('cutStatus').textContent = '';
     delete local.ticket;
     saveState(local); // Keep the request token for safe retries.
     soldOut = false;
@@ -185,14 +190,87 @@
   function syncStub(){for(const el of stub.querySelectorAll('[data-mirror]'))el.textContent=$(el.dataset.mirror).textContent;}
   $('name').addEventListener('input',syncStub);
   let checking=false;
-  $('managerButton').addEventListener('click',async()=>{
-    if(!issuedTicket||checking||issuedTicket.checked)return;
-    checking=true;$('managerButton').disabled=true;
-    try{const result=api.preview?{...issuedTicket,checked:true}:await api.request('check',{token:local.token});showTicket(result);toast(api.preview?'샘플 티켓 접힘 미리보기입니다.':'매니저 확인이 기록되었습니다.');}
-    catch(e){toast(e.message||'확인 기록에 실패했습니다. 다시 눌러 주세요.');}
-    finally{checking=false;$('managerButton').disabled=issuedTicket.checked===true;}
+  const cutLine = document.createElement('div');
+  cutLine.className = 'cut-line';
+  cutLine.tabIndex = -1;
+  cutLine.setAttribute('role','button');
+  cutLine.setAttribute('aria-label','점선을 따라 잘라 입장 확인. 키보드에서는 Enter를 누르세요.');
+  cutLine.innerHTML = '<span class="cut-track"></span><span class="cut-trace"></span>';
+  card.append(cutLine);
+  function cancelCutGesture() {
+    if(cutGesture && cutLine.hasPointerCapture(cutGesture.id)) cutLine.releasePointerCapture(cutGesture.id);
+    cutGesture = null;
+    card.style.setProperty('--cut-progress','0');
+  }
+  function setCutArmed(value) {
+    cancelCutGesture();
+    cutArmed = value;
+    card.classList.toggle('cut-armed',value);
+    card.setAttribute('role',value ? 'group' : 'button');
+    $('managerButton').setAttribute('aria-pressed',String(value));
+    $('managerButton').textContent = issuedTicket?.checked ? '확인 완료 ✓' : value ? '매니저 확인 해제' : '매니저 확인';
+    $('flipButton').disabled = $('resetButton').disabled = value;
+    cutLine.tabIndex = value ? 0 : -1;
+    $('cutStatus').textContent = value ? '빛나는 점선을 한쪽 끝에서 반대쪽 끝까지 그어주세요.' : '';
+    if(value) {
+      drag = null;
+      card.classList.remove('dragging');
+      for(const axis of Object.values(rotation)) { axis.current=0;axis.target=0;axis.velocity=0; }
+      paint();
+      cutLine.scrollIntoView({behavior:reduced?'instant':'smooth',block:'center'});
+    }
+  }
+  $('managerButton').addEventListener('click',()=>{
+    if(!issuedTicket || checking || restoring || issuedTicket.checked) return;
+    setCutArmed(!cutArmed);
   });
-  function syncCheck(){if(api.preview||!issuedTicket||checking||restoring||busy||document.hidden)return;return restoreTicket(true);}
+  async function finishCut() {
+    if(!cutArmed || checking || !issuedTicket || issuedTicket.checked) return;
+    cancelCutGesture();
+    checking = true;
+    $('managerButton').disabled = true;
+    card.classList.add('cut-saving');
+    $('cutStatus').textContent = '입장 확인을 기록하고 있어요…';
+    try {
+      const result = api.preview ? {...issuedTicket,checked:true} : await api.request('check',{token:local.token});
+      showTicket(result);
+      toast(api.preview ? '티켓 자르기 미리보기입니다.' : '입장 확인이 기록되었습니다.');
+    } catch(e) {
+      $('cutStatus').textContent = e.message || '저장하지 못했어요. 점선을 다시 그어주세요.';
+    } finally {
+      checking = false;
+      card.classList.remove('cut-saving');
+      $('managerButton').disabled = issuedTicket?.checked === true;
+    }
+  }
+  cutLine.addEventListener('pointerdown',e=>{
+    if(!cutArmed || checking || e.button!==0 || !e.isPrimary) return;
+    e.stopPropagation();e.preventDefault();
+    const rect=cutLine.getBoundingClientRect(),x=(e.clientX-rect.left)/rect.width;
+    if(x>.22 && x<.78){$('cutStatus').textContent='점선의 왼쪽 또는 오른쪽 끝에서 시작해 주세요.';return;}
+    cutGesture={id:e.pointerId,start:x,right:x>=.78,rect,progress:0};
+    card.style.setProperty('--cut-origin',x>=.78?'right':'left');
+    cutLine.setPointerCapture(e.pointerId);
+  });
+  cutLine.addEventListener('pointermove',e=>{
+    if(!cutGesture || e.pointerId!==cutGesture.id) return;
+    e.stopPropagation();e.preventDefault();
+    const g=cutGesture,x=(e.clientX-g.rect.left)/g.rect.width;
+    if(Math.abs(e.clientY-(g.rect.top+g.rect.height/2))>42){cancelCutGesture();return;}
+    g.progress=Math.max(0,Math.min(1,g.right?(g.start-x)/.78:(x-g.start)/.78));
+    card.style.setProperty('--cut-progress',String(g.progress));
+    if((g.right?x<=.12:x>=.88) && g.progress>=.8) finishCut();
+  });
+  ['pointerup','pointercancel','lostpointercapture'].forEach(type=>cutLine.addEventListener(type,e=>{
+    e.stopPropagation();if(cutGesture && e.pointerId===cutGesture.id) cancelCutGesture();
+  }));
+  cutLine.addEventListener('click',e=>e.stopPropagation());
+  cutLine.addEventListener('keydown',e=>{
+    e.stopPropagation();
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();finishCut();}
+    if(e.key==='Escape'&&!checking)setCutArmed(false);
+  });
+  function syncCheck(){if(api.preview||!issuedTicket||checking||restoring||busy||cutGesture||document.hidden)return;return restoreTicket(true);}
   function syncVisible() {
     if (document.hidden) return;
     syncCheck();
@@ -217,11 +295,12 @@
   function animate(){if(!frame){lastFrame=performance.now();frame=requestAnimationFrame(tick);}}
   function reset(){rotation.x.target=0;rotation.y.target=Math.round(rotation.y.current/360)*360;rotation.z.target=0;animate();}
   card.addEventListener('pointerdown',event=>{
-    if(event.button!==0)return;
+    if(cutArmed || checking || event.button!==0)return;
     const rect=$('perspective').getBoundingClientRect();
     drag={id:event.pointerId,x:event.clientX,y:event.clientY,rx:rotation.x.target,ry:rotation.y.target,lastX:event.clientX,lastTime:performance.now(),velocity:0,width:rect.width,touch:event.pointerType==='touch'};dragged=false;card.setPointerCapture(event.pointerId);card.classList.add('dragging');
   });
   card.addEventListener('pointermove',event=>{
+    if(cutArmed || checking)return;
     const rect=$('perspective').getBoundingClientRect();const px=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width));const py=Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height));
     card.style.setProperty('--mx',`${px*100}%`);card.style.setProperty('--my',`${py*100}%`);card.style.setProperty('--foil-opacity',drag?'.15':'.09');
     if(!drag||event.pointerId!==drag.id)return;
@@ -233,9 +312,9 @@
   });
   function release(event,cancelled=false){if(!drag||event.pointerId!==drag.id)return;const velocity=performance.now()-drag.lastTime<90?drag.velocity:0;if(dragged&&!cancelled){rotation.y.target+=Math.max(-35,Math.min(35,velocity*23));rotation.x.target*=.35;rotation.z.target*=.25;animate();}if(card.hasPointerCapture(event.pointerId))card.releasePointerCapture(event.pointerId);drag=null;card.classList.remove('dragging');if(cancelled)dragged=true;}
   card.addEventListener('pointerup',e=>release(e));card.addEventListener('pointercancel',e=>release(e,true));
-  card.addEventListener('click',()=>{if(!dragged)openPanel();dragged=false;});
+  card.addEventListener('click',()=>{if(!dragged && !cutArmed && !checking)openPanel();dragged=false;});
   card.addEventListener('pointerleave',()=>{if(!drag){card.style.setProperty('--foil-opacity','.035');card.style.setProperty('--mx','50%');card.style.setProperty('--my','50%');}});
-  card.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(e.key))e.preventDefault();if(e.key==='Enter'||e.key===' ')openPanel();if(e.key==='ArrowLeft')rotation.y.target-=20;if(e.key==='ArrowRight')rotation.y.target+=20;if(e.key==='ArrowUp')rotation.x.target=Math.min(48,rotation.x.target+10);if(e.key==='ArrowDown')rotation.x.target=Math.max(-48,rotation.x.target-10);if(e.key.toLowerCase()==='r')reset();animate();});
+  card.addEventListener('keydown',e=>{if(cutArmed || checking){e.preventDefault();if(e.key==='Escape'&&!checking)setCutArmed(false);return;}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(e.key))e.preventDefault();if(e.key==='Enter'||e.key===' ')openPanel();if(e.key==='ArrowLeft')rotation.y.target-=20;if(e.key==='ArrowRight')rotation.y.target+=20;if(e.key==='ArrowUp')rotation.x.target=Math.min(48,rotation.x.target+10);if(e.key==='ArrowDown')rotation.x.target=Math.max(-48,rotation.x.target-10);if(e.key.toLowerCase()==='r')reset();animate();});
   $('flipButton').addEventListener('click',()=>{rotation.y.target=Math.round(rotation.y.target/180)*180+180;rotation.x.target=0;rotation.z.target=0;animate();});
   $('resetButton').addEventListener('click',reset);
   $('downloadButton').addEventListener('click',async()=>{
