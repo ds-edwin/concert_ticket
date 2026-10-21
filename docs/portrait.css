@@ -134,3 +134,10 @@ footer{padding-bottom:calc(80px + env(safe-area-inset-bottom))}
   .performers dd{font-size:3.7cqw}
 }
 
+
+/* Icon-only links keep a 44px touch target. The final song intentionally has none. */
+.youtube-link{width:44px;height:44px;color:#ff739c}
+.youtube-link svg{width:23px;height:23px}
+.youtube-link:hover{color:#ff98b4}
+.youtube-link:focus-visible{outline:2px solid #78efcf;outline-offset:3px}
+.track-unlinked{display:grid;place-items:center;width:44px;min-height:44px;color:#6d6179}

@@ -6,17 +6,17 @@ const fs = require('node:fs');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../docs/api.js'), 'utf8');
 
-function harness() {
+function harness(options = {}) {
   let sequence = 0, timerId = 0;
   const timers = new Map(), listeners = [], frames = [], posts = [];
-  const window = { TICKET_CONFIG: { endpoint:'https://script.google.com/macros/s/test-deployment/exec',capacity:1000 },
+  const window = { TICKET_CONFIG: { endpoint:'https://script.google.com/macros/s/test-deployment/exec',capacity:1000,directRequests:options.directRequests===true },
     addEventListener(type,fn) { if(type==='message') listeners.push(fn); } };
   const document = {
     createElement() { return { style:{},attributes:{},setAttribute(k,v){this.attributes[k]=v;},
       addEventListener(){},remove(){this.removed=true;} }; },
     body: { append(frame) { frames.push(frame); } }
   };
-  vm.runInNewContext(source, { window, document, URL, Uint8Array,
+  vm.runInNewContext(source, { window, document, URL, Uint8Array, AbortController, fetch:options.fetch,
     crypto:{randomUUID:()=> '00000000-0000-4000-8000-'+String(++sequence).padStart(12,'0')},
     location:{origin:'https://ds-edwin.github.io',protocol:'https:'},
     setTimeout(fn,delay){timers.set(++timerId,{fn,delay});return timerId;},
@@ -146,4 +146,63 @@ test('missing recovery records remain a failure and never fabricate a ticket',as
   assert.equal(failure.code,'TIMEOUT');
   assert.match(failure.message,/내 티켓 다시 확인/);
   assert.equal(h.requests().filter(p=>p.message.action==='issue').length,1);
+});
+
+function httpReply(options,data,changes={}) {
+  const request=JSON.parse(options.body);
+  return {ok:true,text:async()=>JSON.stringify({ok:true,protocol:'jukebox-http-v1',requestId:request.requestId,data,...changes})};
+}
+
+test('direct transport issues and restores without an iframe or Google cookies',async()=>{
+  const calls=[];
+  const h=harness({directRequests:true,fetch:async(url,options)=>{
+    const request=JSON.parse(options.body);calls.push(request);
+    assert.equal(url,'https://script.google.com/macros/s/test-deployment/exec');
+    assert.equal(options.method,'POST');assert.equal(options.credentials,'omit');
+    assert.equal(options.headers['Content-Type'],'text/plain;charset=UTF-8');
+    assert.equal(request.pageOrigin,'https://ds-edwin.github.io');
+    return httpReply(options,request.action==='health'?{version:1}:{serial:11,name:'테스트'});
+  }});
+  assert.equal((await h.api.issue({token:'retained-token'})).serial,11);
+  assert.equal((await h.api.request('restore',{token:'retained-token'})).serial,11);
+  assert.deepEqual(calls.map(c=>c.action),['health','issue','restore']);
+  assert.equal(h.frames.length,0);
+  assert.equal(h.timers.size,0);
+});
+
+test('direct write timeout recovers the committed row without resending the write',async()=>{
+  const calls=[];
+  const h=harness({directRequests:true,fetch:async(url,options)=>{
+    const request=JSON.parse(options.body);calls.push(request);
+    if(request.action==='issue')return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError'))));
+    return httpReply(options,request.action==='health'?{version:1}:{serial:12,name:'테스트'});
+  }});
+  const result=h.api.issue({token:'retained-token'});
+  await flush();await flush();
+  h.fire(40000);
+  assert.equal((await result).serial,12);
+  assert.deepEqual(calls.map(c=>c.action),['health','issue','restore']);
+  assert.equal(calls[2].payload.token,calls[1].payload.token);
+  assert.equal(h.frames.length,0);
+});
+
+test('a direct response for another request cannot confirm a ticket',async()=>{
+  const h=harness({directRequests:true,fetch:async(url,options)=>{
+    const request=JSON.parse(options.body);
+    return httpReply(options,request.action==='health'?{version:1}:{serial:13},
+      request.action==='health'?{}:{requestId:'wrong-request'});
+  }});
+  const result=await h.api.request('restore',{token:'retained-token'}).catch(e=>e);
+  assert.equal(result.code,'RESPONSE');
+});
+
+test('an old server remains on the legacy transport until the HTTP update is deployed',async()=>{
+  const h=harness({directRequests:true,fetch:async()=>({ok:true,text:async()=>'<html>doPost not found</html>'})});
+  const result=h.api.request('restore',{token:'retained-token'});
+  await flush();await flush();
+  assert.equal(h.frames.length,1);
+  h.ready();await flush();
+  h.reply(h.requests()[0],{serial:14,name:'테스트'});
+  assert.equal((await result).serial,14);
+  assert.equal(h.api.probeError,'SERVER_UPDATE');
 });

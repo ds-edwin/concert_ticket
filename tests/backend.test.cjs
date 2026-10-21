@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const code = fs.readFileSync(path.join(__dirname,'../apps-script/Code.gs'),'utf8');
+const code = fs.readFileSync(path.join(__dirname,'../apps-script/INSTALL.gs'),'utf8');
 function environment(){
   const targetId='test-spreadsheet-id';
   const props=new Map([['SPREADSHEET_ID',targetId],['ALLOWED_ORIGINS','https://ds-edwin.github.io'],['LAST_ISSUED','0']]);
@@ -28,6 +28,7 @@ function environment(){
   const reg=sheet(data),setlist=sheet(songs);
   const ss={getId:()=>targetId,setSpreadsheetTimeZone(){},getSheetByName:n=>n==='참석자'?reg:n==='셋리스트'?setlist:null};
   const context=vm.createContext({console,Date,Array,Number,String,Error,JSON,Math,
+    ContentService:{MimeType:{JSON:'application/json'},createTextOutput:text=>({text,setMimeType(){return this;}})},
     Session:{getActiveUser:()=>({getEmail:()=> 'owner@example.test'}),getEffectiveUser:()=>({getEmail:()=> 'owner@example.test'})},
     SpreadsheetApp:{getActiveSpreadsheet:()=>ss,openById:id=>{assert.equal(id,targetId);return ss;},flush:()=>{assert.ok(locked||settingUp);events.push('flush');}},
     PropertiesService:{getScriptProperties:()=>({getProperty:k=>props.get(k)||null,setProperty:(k,v)=>{if(propertyFailure){propertyFailure=false;throw new Error('simulated lost response after sheet commit');}props.set(k,v);}})},
@@ -70,5 +71,47 @@ test('setup migrates six-column sheet preserving checks on rerun',()=>{const e=e
 test('setup refuses occupied G column',()=>{const e=environment();e.data[0][6]='Other';assert.throws(()=>e.setup(),/G/);assert.equal(e.data[0][6],'Other');});
 test('live layout E=check F=message G=token writes and restores correctly',()=>{const e=environment();e.data[0]=['입력일시','연번','이름','연락처_뒷번호','체크여부','하고 싶은 말','_요청키'];e.setup();const p=input();assert.equal(e.call('issue',p).ok,true);assert.equal(e.data[1][4],'');assert.equal(e.data[1][5],p.message);assert.match(e.data[1][6],/^[a-f0-9]{64}$/);assert.equal(e.call('check',{token:p.token}).data.checked,true);assert.equal(e.data[1][4],'O');assert.equal(e.data[1][5],p.message);assert.equal(e.call('restore',{token:p.token}).data.checked,true);});
 test('1000th ticket grows the default 1000-row sheet for the header',()=>{const e=environment();e.props.set('LAST_ISSUED','999');for(let i=1;i<=999;i++)e.data.push([new Date(),i,'Guest','0001','','','']);assert.equal(e.call('issue',input()).data.serial,1000);assert.ok(e.events.includes('grow'));});
+
+function httpCall(e, action, payload={}, changes={}) {
+  const request={protocol:'jukebox-http-v1',requestId:crypto.randomUUID(),action,payload,pageOrigin:'https://ds-edwin.github.io',...changes};
+  const response=JSON.parse(e.context.doPost({postData:{contents:JSON.stringify(request)}}).text);
+  assert.equal(response.protocol,'jukebox-http-v1');
+  assert.equal(response.requestId,request.requestId);
+  return response;
+}
+test('HTTP transport issues once, restores and checks the same token',()=>{
+  const e=environment(),p=input();
+  const health=httpCall(e,'health');
+  assert.equal(health.ok,true);assert.equal(health.data.version,1);assert.equal(e.data.length,1);
+  const issued=httpCall(e,'issue',p);assert.equal(issued.ok,true);assert.equal(issued.data.serial,1);
+  const repeated=httpCall(e,'issue',{...p,name:'changed'});
+  assert.equal(repeated.data.serial,1);assert.equal(repeated.data.name,p.name);assert.equal(e.data.length,2);
+  assert.equal(httpCall(e,'restore',{token:p.token}).data.serial,1);
+  assert.equal(httpCall(e,'check',{token:p.token}).data.checked,true);
+  assert.equal(e.data[1][6],'O');
+});
+test('HTTP transport rejects other origins, unsupported actions and unknown tokens',()=>{
+  const e=environment(),p=input();
+  assert.equal(httpCall(e,'issue',p,{pageOrigin:'https://untrusted.test'}).code,'ORIGIN');
+  assert.equal(httpCall(e,'setup').code,'ACTION');
+  assert.equal(httpCall(e,'public').code,'ACTION');
+  assert.equal(httpCall(e,'health',{}, {protocol:'old'}).code,'VERSION');
+  assert.equal(httpCall(e,'restore',{token:p.token}).data,null);
+  assert.equal(e.data.length,1);
+});
+test('HTTP transport rejects malformed and oversized bodies without exposing server details',()=>{
+  const e=environment();
+  for(const body of ['', '{', '[]', 'x'.repeat(8193)]) {
+    const result=JSON.parse(e.context.doPost({postData:{contents:body}}).text);
+    assert.equal(result.ok,false);assert.equal(result.code,'VALIDATION');assert.equal(e.data.length,1);
+  }
+});
+test('HTTP transport recovers a committed row after a server response failure',()=>{
+  const e=environment(),p=input();e.failPropertyOnce();
+  assert.equal(httpCall(e,'issue',p).ok,false);
+  const restored=httpCall(e,'restore',{token:p.token});
+  assert.equal(restored.ok,true);assert.equal(restored.data.serial,1);assert.equal(e.data.length,2);
+});
+
 let passed=0;for(const [name,fn]of tests){try{fn();passed++;console.log('PASS '+name);}catch(e){console.error('FAIL '+name);console.error(e);process.exitCode=1;}}
 console.log(`${passed}/${tests.length} behavioral checks passed`);

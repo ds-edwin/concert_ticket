@@ -1,19 +1,25 @@
 # Verification
 
-- Initial backend adapter tests: 18/18 passed.
-- The production Apps Script uses the spreadsheet where setup was run. Production registrations were preserved.
-- Previous live issuance and manager confirmation were checked using synthetic ticket No. 0003; the production sheet recorded O.
-- The production setlist was re-read on 2026-10-22 (Asia/Seoul). It contains four songs with artist names.
-- The portrait front, participant back and exported portrait PNG were inspected. The back-side content now fits above the perforation.
-- Requested copy changes: setlist disclaimer, ticket-owner heading, issue-button instruction, message placeholder, and removal of the closing slogan.
-- Client bridge regression tests: 8/8 passed, including a timed-out read while issuance/check is still running, read-only recovery after an uncertain issuance result, and missing-record failures.
-- A request timeout now fails only that request. An old connection is replaced only after its remaining requests finish; a slow setlist/restore cannot cancel issuance or manager confirmation.
-- An uncertain issuance response triggers a restore lookup using the same stored token. The issuance is never automatically replayed; a missing record remains a failure.
-- Background and manual ticket checks now share one lookup and the same button state instead of leaving an enabled button that silently ignores clicks.
-- Before this patch, a manual production restore of the existing synthetic ticket succeeded, but the user-reported browser failure was not reproduced directly. This patch addresses independently reproduced concurrency defects, not a verified diagnosis of every browser environment.
-- No additional production ticket was issued during this investigation. The current patch deployed successfully (Pages run 39628210439). The production browser loaded the new asset version, completed a manual restore of the existing synthetic ticket, reset the button and showed the success message, with no captured browser warnings/errors. New production issuance was not retested in this investigation.
-- Public song data is shown immediately from the latest bundled or browser-cached copy; successful sheet responses replace it. Names, contact suffixes and registration messages are not included in this public cache.
-- The blocked-origin local browser test showed all four songs after CONNECT failure, with the last-confirmed time, a latest-query-delay notice and an enabled refresh button.
-- Frontend JavaScript syntax checks passed.
-- Production Pages deployment succeeded. A fresh browser load immediately displayed all four songs from the saved copy, then changed to the live-confirmed updated state after a successful sheet response.
-- All five requested wording changes were verified in the deployed DOM; no browser warnings or errors were reported.
+## 2026-10-22: final setlist and direct ticket transport
+
+Story: registration form or restore button -> Apps Script -> private registration sheet -> confirmed ticket display.
+
+- The organizer supplied the final 16-song setlist and 15 exact YouTube URLs. Blue rain by 오혜린 intentionally has no link.
+- The setlist is now bundled in config.js. All setlist sheet reads, cache replacement, polling, refresh buttons and loading timestamps were removed from the website.
+- YouTube links use accessible icon-only buttons with 44px touch targets.
+- A read-only POST probe to the current production endpoint returned HTML with "다음 스크립트 함수(doPost)를 찾을 수 없습니다." The direct JSON transport is therefore not installed in the current Google deployment.
+- Added a doPost transport that routes issue/restore/check to the existing token-protected, locked backend. It sends no Google cookies and keeps personal input and the request token in the POST body.
+- Existing deployments remain usable through the legacy bridge until the HTTP version responds successfully. Publishing GitHub files alone does not update Apps Script.
+- Added a server-update helper page with the exact add-on code, existing-deployment instructions and a read-only health check.
+- The connected browser reaches the Apps Script sign-in page, not an authenticated editor. The owner must save the add-on code and update the existing deployment to a new version.
+- Local backend checks: 22/22 passed against the complete INSTALL.gs, including HTTP issue, idempotent repeat, restore, check, validation and post-commit recovery.
+- Client tests: 12/12 passed, including credential-free direct POST, no iframe on the direct path, native AbortError recovery, correlated replies and legacy-server compatibility.
+- JavaScript syntax checks passed.
+- Current frontend deployment and the 16-song browser display are pending verification.
+- Full production verification of direct issuance/restore is blocked on the Apps Script deployment update. No additional production ticket was issued during this update.
+
+## Previously verified
+
+- Portrait ticket artwork, participant back and exported PNG; all requested copy changes.
+- A synthetic ticket was issued and manager confirmation recorded in the private production sheet during earlier integration work.
+- A subsequent production restore completed in the connected browser. The user's browser continued to fail, so that earlier result is not evidence that the reported problem was resolved.

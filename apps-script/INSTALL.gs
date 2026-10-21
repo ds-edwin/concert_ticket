@@ -1,5 +1,5 @@
 /** JUKEBOX ticket service. Paste into a spreadsheet-bound Apps Script project.
- * Public functions: setup (owner only via editor), doGet, bridgeRequest.
+ * Public functions: setup (owner only via editor), doGet, doPost, bridgeRequest.
  * All helpers end with _ so google.script.run cannot call them directly.
  * Never publish the registration sheet or include its rows in frontend files.
  */
@@ -187,3 +187,36 @@ function check_(token) {
 }
 
 var BRIDGE_HTML_ = "<!doctype html>\n<html><head><meta charset=\"utf-8\"><meta name=\"referrer\" content=\"no-referrer\"></head><body>\n<script>\n'use strict';\nconst pageOrigin = <?!= originJson ?>;\nconst channel = <?!= channelJson ?>;\nlet connected = false;\nconst announce = () => window.top.postMessage({type:'jukebox-bridge',channel,ready:true},pageOrigin);\nconst readyTimer = setInterval(() => { if(!connected) announce(); },1000);\nsetTimeout(()=>clearInterval(readyTimer),30000);\nwindow.addEventListener('message',event=>{\n  if(event.origin!==pageOrigin || event.source!==window.top) return;\n  const data=event.data;\n  if(!data || data.channel!==channel) return;\n  if(data.type==='jukebox-connect'){connected=true;clearInterval(readyTimer);return;}\n  if(data.type!=='jukebox-request'||!['public','restore','issue','check'].includes(data.action)||typeof data.requestId!=='string'||!/^[a-f0-9-]{36}$/i.test(data.requestId))return;\n  const reply=result=>window.top.postMessage({type:'jukebox-bridge',channel,requestId:data.requestId,result},pageOrigin);\n  google.script.run\n    .withSuccessHandler(reply)\n    .withFailureHandler(()=>reply({ok:false,code:'NETWORK',message:'등록 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'}))\n    .bridgeRequest(data.action,data.payload||{},pageOrigin);\n});\nannounce();\n</script>\n</body></html>\n";
+
+/**
+ * JUKEBOX direct HTTP transport.
+ * Existing installations: add this as HTTP.gs, save, then update the EXISTING
+ * web-app deployment to a new version. No setup rerun or new permissions.
+ * Do not add this file if INSTALL.gs already includes doPost.
+ */
+function doPost(e) {
+  var requestId = '';
+  var result;
+  try {
+    var body = e && e.postData && e.postData.contents;
+    if (typeof body !== 'string' || !body || body.length > 8192) fail_('VALIDATION', '올바르지 않은 요청입니다.');
+    var request;
+    try { request = JSON.parse(body); } catch (parseError) { fail_('VALIDATION', '올바르지 않은 요청입니다.'); }
+    if (!request || typeof request !== 'object' || Array.isArray(request)) fail_('VALIDATION', '올바르지 않은 요청입니다.');
+    if (!validToken_(request.requestId)) fail_('VALIDATION', '요청 번호를 확인해 주세요.');
+    requestId = request.requestId;
+    if (request.protocol !== 'jukebox-http-v1') fail_('VERSION', '티켓 페이지를 새로 열어 주세요.');
+    if (!isAllowedOrigin_(request.pageOrigin)) fail_('ORIGIN', '등록되지 않은 웹사이트입니다.');
+    if (request.action === 'health') {
+      result = {ok:true,data:{version:1}};
+    } else {
+      if (['issue','restore','check'].indexOf(request.action) < 0) fail_('ACTION', '지원하지 않는 요청입니다.');
+      result = bridgeRequest(request.action, request.payload, request.pageOrigin);
+    }
+  } catch (err) {
+    result = {ok:false,code:err.publicCode || 'SERVER',message:err.publicCode ? err.message : '서버에서 처리 결과를 확인하지 못했어요. 잠시 후 다시 확인해 주세요.'};
+  }
+  result.protocol = 'jukebox-http-v1';
+  result.requestId = requestId;
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+}

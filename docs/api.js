@@ -1,5 +1,5 @@
-/* Google Apps Script bridge. A slow request must never cancel another request.
-   Uncertain issuance is recovered with a read; writes are never replayed. */
+/* Prefer a cookie-independent JSON POST. Keep the legacy bridge only until the
+   server update is deployed. Uncertain writes are recovered by token lookup. */
 (function () {
   'use strict';
   const config = window.TICKET_CONFIG;
@@ -115,7 +115,7 @@
         this.disconnect(this.generation, error('TIMEOUT', '서버 연결을 새로 확인합니다.'));
       }
     }
-    async send(action, payload) {
+    async sendBridge(action, payload) {
       await this.connect();
       const requestId = uuid();
       const generation = this.generation;
@@ -137,6 +137,61 @@
           this.disconnect(generation, error('CONNECT', '등록 서버에 연결하지 못했어요.'));
         }
       });
+    }
+    async sendHTTP(action, payload = {}, timeoutMs) {
+      let endpoint;
+      try {
+        endpoint = new URL(config.endpoint);
+        if (endpoint.origin !== 'https://script.google.com' || !/^\/macros\/s\/[\w-]+\/exec$/.test(endpoint.pathname)) throw new Error();
+      } catch { throw error('CONFIG', '발급 서버 주소를 확인해 주세요.'); }
+      const requestId = uuid();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(),
+        timeoutMs || (['issue', 'check'].includes(action) ? 40000 : 20000));
+      try {
+        // A simple POST avoids OPTIONS preflight and does not depend on Google cookies.
+        // Tokens and personal input stay in the POST body, never in the URL.
+        const response = await fetch(endpoint.href, {
+          method: 'POST', mode: 'cors', credentials: 'omit', redirect: 'follow',
+          referrerPolicy: 'no-referrer',
+          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          body: JSON.stringify({ protocol: 'jukebox-http-v1', requestId, action, payload, pageOrigin: location.origin }),
+          signal: controller.signal
+        });
+        if (!response.ok) throw error('NETWORK', '발급 서버에 연결하지 못했어요. 잠시 후 다시 확인해 주세요.');
+        let result;
+        try { result = JSON.parse(await response.text()); }
+        catch { throw error('SERVER_UPDATE', '발급 서버에 연결 업데이트가 필요합니다.'); }
+        if (result?.protocol !== 'jukebox-http-v1' || result.requestId !== requestId) {
+          throw error('RESPONSE', '발급 서버의 응답을 확인하지 못했어요.');
+        }
+        if (result.ok !== true) throw error(result.code || 'SERVER', result.message || '요청을 처리하지 못했어요.');
+        return result.data;
+      } catch (e) {
+        if (controller.signal.aborted) throw error('TIMEOUT', '서버 응답이 늦어졌어요. 잠시 후 다시 확인해 주세요.');
+        if (typeof e.code === 'string') throw e;
+        throw error('NETWORK', '발급 서버에 연결하지 못했어요. 잠시 후 다시 확인해 주세요.');
+      } finally { clearTimeout(timer); }
+    }
+    selectTransport() {
+      if (!config.directRequests) return Promise.resolve('bridge');
+      if (this.transportProbe) return this.transportProbe;
+      this.transportProbe = this.sendHTTP('health', {}, 15000).then(() => 'http').catch(e => {
+        this.probeError = e.code || 'NETWORK';
+        // Keep the currently deployed server usable until its HTTP update is published.
+        return 'bridge';
+      }).then(mode => {
+        this.transport = mode;
+        document.documentElement?.setAttribute('data-ticket-transport', mode);
+        if (this.probeError) document.documentElement?.setAttribute('data-ticket-probe', this.probeError);
+        return mode;
+      });
+      return this.transportProbe;
+    }
+    async send(action, payload) {
+      if (!config.directRequests) return this.sendBridge(action, payload);
+      const mode = await this.selectTransport();
+      return mode === 'http' ? this.sendHTTP(action, payload) : this.sendBridge(action, payload);
     }
     async issue(payload, onRecovery = () => {}) {
       try { return await this.request('issue', payload); }
