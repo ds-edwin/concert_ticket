@@ -11,7 +11,7 @@
 - An uncertain issuance response triggers a restore lookup using the same stored token. The issuance is never automatically replayed; a missing record remains a failure.
 - Background and manual ticket checks now share one lookup and the same button state instead of leaving an enabled button that silently ignores clicks.
 - Before this patch, a manual production restore of the existing synthetic ticket succeeded, but the user-reported browser failure was not reproduced directly. This patch addresses independently reproduced concurrency defects, not a verified diagnosis of every browser environment.
-- No additional production ticket was issued during this investigation. Deployment verification of the current patch is pending.
+- No additional production ticket was issued during this investigation. The current patch deployed successfully (Pages run 39628210439). The production browser loaded the new asset version, completed a manual restore of the existing synthetic ticket, reset the button and showed the success message, with no captured browser warnings/errors. New production issuance was not retested in this investigation.
 - Public song data is shown immediately from the latest bundled or browser-cached copy; successful sheet responses replace it. Names, contact suffixes and registration messages are not included in this public cache.
 - The blocked-origin local browser test showed all four songs after CONNECT failure, with the last-confirmed time, a latest-query-delay notice and an enabled refresh button.
 - Frontend JavaScript syntax checks passed.
