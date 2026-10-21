@@ -166,3 +166,8 @@ footer{padding-bottom:24px}
 /* Keep the detached admission stub beneath the ticket, with room for the gap. */
 .perspective:has(.ticket.checked){padding-bottom:65px}
 .ticket.checked .ticket-stub .sheen{background:linear-gradient(180deg,transparent 85%,#0002 85.2%,transparent 100%)}
+
+/* Rotate from the full viewer area, including the space around the card. */
+.ticket-stage{touch-action:pan-y pinch-zoom;user-select:none;cursor:grab}
+.ticket-stage:has(.dragging){cursor:grabbing}
+.ticket-stage:has(.cut-armed){cursor:default}
