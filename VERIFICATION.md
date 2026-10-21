@@ -15,7 +15,7 @@ Story: registration form or restore button -> Apps Script -> private registratio
 - Local backend checks: 22/22 passed against the complete INSTALL.gs, including HTTP issue, idempotent repeat, restore, check, validation and post-commit recovery.
 - Client tests: 12/12 passed, including credential-free direct POST, no iframe on the direct path, native AbortError recovery, correlated replies and legacy-server compatibility.
 - JavaScript syntax checks passed.
-- Current frontend deployment and the 16-song browser display are pending verification.
+- Frontend deployment succeeded (Pages run 39635592483). Browser verification of the final 16-song display was interrupted, so visual confirmation is pending.
 - Full production verification of direct issuance/restore is blocked on the Apps Script deployment update. No additional production ticket was issued during this update.
 
 ## Previously verified
