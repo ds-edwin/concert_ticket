@@ -158,7 +158,11 @@ footer{padding-bottom:24px}
 .cut-trace{background:#fff;box-shadow:0 0 10px #78efcf;transform:scaleX(var(--cut-progress,0));transform-origin:var(--cut-origin,left)}
 .cut-line:focus-visible{outline:2px solid #78efcf;outline-offset:3px;border-radius:6px}
 .ticket .ticket-stub{transition:transform .8s cubic-bezier(.3,.05,.8,.5),opacity .8s;opacity:1}
-.ticket.checked .ticket-stub{transform:translateY(90px) rotateZ(12deg) rotateX(-18deg);opacity:0;pointer-events:none}
+.ticket.checked .ticket-stub{transform:translateY(26px) rotateZ(2deg);opacity:1;pointer-events:none}
 .ticket.cut-saving .cut-track{animation:cutGlow .7s ease-in-out infinite}
 @keyframes cutGlow{0%,100%{opacity:.55}50%{opacity:1;filter:drop-shadow(0 0 9px #78efcf)}}
 @media(prefers-reduced-motion:reduce){.cut-track{animation:none}.ticket .ticket-stub{transition:none}}
+
+/* Keep the detached admission stub beneath the ticket, with room for the gap. */
+.perspective:has(.ticket.checked){padding-bottom:65px}
+.ticket.checked .ticket-stub .sheen{background:linear-gradient(180deg,transparent 85%,#0002 85.2%,transparent 100%)}
