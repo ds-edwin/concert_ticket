@@ -46,7 +46,7 @@
     $('managerButton').disabled = ticket.checked === true;
     $('managerButton').textContent = ticket.checked ? '확인 완료 ✓' : cutArmed ? '매니저 확인 해제' : '매니저 확인';
     if (ticket.checked) setCutArmed(false);
-    $('cutStatus').textContent = ticket.checked ? '입장 확인 완료' : cutArmed ? '빛나는 점선을 한쪽 끝에서 반대쪽 끝까지 그어주세요.' : '';
+    $('cutStatus').textContent = ticket.checked ? '입장 확인 완료' : cutArmed ? '빛나는 점선을 한쪽 끝에서 약 70%만 그어주세요.' : '';
     local.ticket = ticket;
     saveState(local);
     const serial = ticket.preview ? 'SAMPLE' : `No. ${String(ticket.serial).padStart(4,'0')}`;
@@ -197,7 +197,11 @@
   cutLine.setAttribute('aria-label','점선을 따라 잘라 입장 확인. 키보드에서는 Enter를 누르세요.');
   cutLine.innerHTML = '<span class="cut-track"></span><span class="cut-trace"></span>';
   card.append(cutLine);
+  function cutHaptic(pattern) {
+    try { if (typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch {}
+  }
   function cancelCutGesture() {
+    if (cutGesture?.touch) cutHaptic(0);
     if(cutGesture && cutLine.hasPointerCapture(cutGesture.id)) cutLine.releasePointerCapture(cutGesture.id);
     cutGesture = null;
     card.style.setProperty('--cut-progress','0');
@@ -211,7 +215,7 @@
     $('managerButton').textContent = issuedTicket?.checked ? '확인 완료 ✓' : value ? '매니저 확인 해제' : '매니저 확인';
     $('flipButton').disabled = $('resetButton').disabled = value;
     cutLine.tabIndex = value ? 0 : -1;
-    $('cutStatus').textContent = value ? '빛나는 점선을 한쪽 끝에서 반대쪽 끝까지 그어주세요.' : '';
+    $('cutStatus').textContent = value ? '빛나는 점선을 한쪽 끝에서 약 70%만 그어주세요.' : '';
     if(value) {
       drag = null;
       card.classList.remove('dragging');
@@ -248,7 +252,8 @@
     e.stopPropagation();e.preventDefault();
     const rect=cutLine.getBoundingClientRect(),x=(e.clientX-rect.left)/rect.width;
     if(x>.22 && x<.78){$('cutStatus').textContent='점선의 왼쪽 또는 오른쪽 끝에서 시작해 주세요.';return;}
-    cutGesture={id:e.pointerId,start:x,right:x>=.78,rect,progress:0};
+    cutGesture={id:e.pointerId,start:x,right:x>=.78,rect,progress:0,touch:e.pointerType==='touch',hapticStep:0};
+    if(cutGesture.touch) cutHaptic(8);
     card.style.setProperty('--cut-origin',x>=.78?'right':'left');
     cutLine.setPointerCapture(e.pointerId);
   });
@@ -257,9 +262,15 @@
     e.stopPropagation();e.preventDefault();
     const g=cutGesture,x=(e.clientX-g.rect.left)/g.rect.width;
     if(Math.abs(e.clientY-(g.rect.top+g.rect.height/2))>42){cancelCutGesture();return;}
-    g.progress=Math.max(0,Math.min(1,g.right?(g.start-x)/.78:(x-g.start)/.78));
+    g.progress=Math.max(0,Math.min(1,g.right?g.start-x:x-g.start));
     card.style.setProperty('--cut-progress',String(g.progress));
-    if((g.right?x<=.12:x>=.88) && g.progress>=.8) finishCut();
+    const step=Math.floor(g.progress*10);
+    if(g.touch && step>g.hapticStep){g.hapticStep=step;cutHaptic(8);}
+    if(g.progress>=.70) {
+      const touch=g.touch;
+      finishCut();
+      if(touch) cutHaptic([18,25,25]);
+    }
   });
   ['pointerup','pointercancel','lostpointercapture'].forEach(type=>cutLine.addEventListener(type,e=>{
     e.stopPropagation();if(cutGesture && e.pointerId===cutGesture.id) cancelCutGesture();
