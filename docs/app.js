@@ -66,6 +66,7 @@
   }
   $('ticketForm').addEventListener('submit', async event => {
     event.preventDefault(); if (busy || soldOut) return;
+    if (restoring) { $('formStatus').textContent = '기존 발급 기록을 확인 중이에요. 잠시 후 다시 눌러 주세요.'; return; }
     $('formStatus').textContent = '';
     const payload = validate(); if (!payload) return;
     if (!persistent && !api.preview) { $('formStatus').textContent = '이 브라우저의 저장 공간을 사용할 수 없어요. 중복 발급 방지를 위해 일반 브라우저에서 저장 기능을 허용한 뒤 다시 열어 주세요.'; return; }
@@ -82,6 +83,37 @@
       if (e.code === 'SOLD_OUT') { soldOut = true; $('capacityText').textContent = '1,000장 발급이 모두 마감되었습니다.'; }
     } finally { busy=false; $('issueButton').disabled=soldOut; $('issueLabel').textContent = soldOut ? '발급 마감' : api.preview ? '샘플 티켓 보기' : '나의 티켓 받기'; }
   });
+  // Only a successful, explicit missing-record response may clear a cached ticket.
+  function clearDeletedTicket() {
+    issuedTicket = null;
+    delete local.ticket;
+    saveState(local); // Keep the request token for safe retries.
+    soldOut = false;
+    $('ticketForm').reset();
+    $('registration').hidden = false;
+    $('issuedSection').hidden = true;
+    $('issuedTitle').textContent = '당신의 티켓이 준비됐어요.';
+    $('issuedDetail').textContent = '';
+    $('managerButton').hidden = true;
+    $('managerButton').disabled = false;
+    $('managerButton').textContent = '매니저 확인';
+    $('ticket').classList.remove('checked');
+    $('ticket').setAttribute('aria-expanded', 'false');
+    $('detailsPanel').hidden = true;
+    $('frontName').textContent = $('backName').textContent = 'YOUR NAME';
+    $('frontSerial').textContent = $('backSerial').textContent = 'No. ————';
+    $('stageEdition').textContent = '001 — 1000';
+    $('charCount').textContent = '0 / 100';
+    $('charCount').style.color = '';
+    ['nameError', 'phoneError', 'messageError', 'formStatus'].forEach(id => $(id).textContent = '');
+    ['name', 'phoneLast4', 'message'].forEach(id => $(id).setAttribute('aria-invalid', 'false'));
+    $('capacityText').textContent = '총 1,000장의 고유 번호 티켓';
+    $('issueButton').disabled = false;
+    $('issueLabel').textContent = '나의 티켓 받기';
+    syncStub();
+    reset();
+    $('restoreStatus').textContent = '발급 기록이 삭제되어 초기 화면으로 돌아왔어요. 다시 티켓을 발급받을 수 있습니다.';
+  }
   function restoreTicket(silent = false) {
     if (api.preview) return Promise.resolve();
     if (busy || checking) {
@@ -101,6 +133,8 @@
       if (ticket) {
         showTicket(ticket);
         if (restoreInteractive) $('restoreStatus').textContent = `기존 티켓 No. ${String(ticket.serial).padStart(4,'0')}을 불러왔어요.`;
+      } else if (ticket === null && (issuedTicket || local.ticket)) {
+        clearDeletedTicket();
       } else if (restoreInteractive) {
         $('restoreStatus').textContent = '현재 서버에서 이 브라우저의 발급 기록을 찾지 못했어요. 발급했던 브라우저에서 다시 확인해 주세요.';
       }
