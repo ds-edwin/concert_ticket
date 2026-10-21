@@ -117,6 +117,8 @@ function readText_(value) { return String(value == null ? '' : value); }
 function ticketFromRow_(row) { return {serial:Number(row[1]),name:readText_(row[2]),issuedAt:new Date(row[0]).toISOString(),checked:String(row[6]||'').trim().toUpperCase()==='O'}; }
 function findRequest_(rows,hash) { for(var i=0;i<rows.length;i++){if(rows[i][5]===hash)return ticketFromRow_(rows[i]);} return null; }
 function maxIssued_(rows) {
+  // An empty registration list starts a new numbering sequence.
+  if (rows.length === 0) return 0;
   var saved=Number(PropertiesService.getScriptProperties().getProperty('LAST_ISSUED') || 0);
   if (!Number.isInteger(saved) || saved<0 || saved>CAPACITY_) fail_('CONFIG','연번 설정을 확인해 주세요.');
   var seen={};
