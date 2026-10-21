@@ -1,0 +1,134 @@
+/* Portrait ticket: the supplied artwork stays intact above a detachable stub. */
+main{max-width:1120px}
+.site-header{padding-top:22px;padding-bottom:22px}
+.experience{justify-content:center;align-items:flex-start;max-width:940px;gap:34px;margin-top:26px}
+.ticket-stage{flex:0 1 440px;width:100%;max-width:440px;margin:0 auto}
+.stage-caption{font-size:9px;letter-spacing:1px;padding:0 14px}
+.perspective,.experience:has(.details-panel:not([hidden])) .perspective{min-height:0;padding:24px 18px 30px;perspective:1500px}
+.ticket{max-width:400px;aspect-ratio:1449/2409;touch-action:pan-y pinch-zoom}
+.ticket-face,.ticket-edge{border-radius:14px}
+.ticket-face{
+  -webkit-mask-image:radial-gradient(circle at 0 85%,transparent 8px,#000 9px),radial-gradient(circle at 100% 85%,transparent 8px,#000 9px);
+  mask-image:radial-gradient(circle at 0 85%,transparent 8px,#000 9px),radial-gradient(circle at 100% 85%,transparent 8px,#000 9px);
+  -webkit-mask-composite:source-in;mask-composite:intersect;
+}
+.ticket-front{background:#130f25}
+.ticket-art{position:absolute;inset:0 0 auto;width:100%;height:85%;object-fit:contain;background:#130f25}
+.ticket-perforation{position:absolute;top:85%;left:4%;right:4%;height:0;border-top:1px dashed #e680ba99}
+.stub-label{position:absolute;left:7%;right:7%;top:87.3%;display:flex;justify-content:space-between;gap:2cqw;color:#aa98b9;font-size:2cqw;letter-spacing:.12cqw}
+.front-owner{top:91%;bottom:auto;left:7%;right:42%;max-width:none;display:block;white-space:nowrap}
+.front-owner>span,.front-serial>span{display:block;font-size:1.9cqw;letter-spacing:.11cqw;color:#a494b7;margin-bottom:1cqw}
+.front-owner>strong{display:block;max-width:100%;font-size:4cqw;line-height:1.4;letter-spacing:0}
+.front-serial{top:91%;bottom:auto;left:auto;right:7%;display:block;text-align:right}
+.front-serial>strong{font-size:4.2cqw;line-height:1.4}
+.front-serial>small{display:none}
+.ticket-aura{height:60%;width:75%;opacity:.1;filter:blur(45px)}
+.ticket-shadow{bottom:1%;left:13%;width:74%;height:8%;filter:blur(19px)}
+.back-inner,.ticket-back .back-inner{inset:6% 7% 19%;display:flex;gap:3cqw}
+.back-top{font-size:2cqw;line-height:1.7;letter-spacing:.03cqw;gap:4cqw}
+.back-top b{font-size:2.3cqw;white-space:nowrap}
+.back-lineup{display:block;flex:1}
+.lineup-heading{padding:4cqw 0 2cqw}
+.lineup-heading small{font-size:1.9cqw;letter-spacing:.24cqw}
+.lineup-heading h2{font-size:8.5cqw;letter-spacing:-.35cqw;margin:1.8cqw 0}
+.lineup-heading h2 span{font-size:3cqw;letter-spacing:1cqw;margin-top:1cqw}
+.performers{display:grid;gap:2.2cqw;margin:4cqw 0 0}
+.performers>div{display:block;padding-bottom:2.2cqw}
+.performers dt{font-size:2.8cqw;line-height:1.6;margin-bottom:.6cqw}
+.performers dd{font-size:3.65cqw;line-height:1.65;white-space:normal;word-break:keep-all;overflow-wrap:anywhere}
+.back-venue{font-size:2.65cqw;line-height:1.7;margin:0;text-align:left}
+.back-venue span{color:#78efcf;font-size:2.4cqw}
+.back-bottom{position:absolute;left:7%;right:7%;top:91%;display:flex;align-items:start;gap:4cqw;border:0;padding:0}
+.back-bottom>div:first-child{min-width:0;flex:1}
+.back-bottom>div:nth-child(2){flex:none;text-align:right}
+.back-bottom small{font-size:1.9cqw;letter-spacing:.11cqw;margin-bottom:1cqw}
+.back-bottom strong{font-size:4cqw;max-width:100%;line-height:1.4}
+.ticket>.ticket-front,.ticket>.ticket-back,.ticket>.ticket-edge{clip-path:inset(0 0 15% 0)}
+.ticket-stub{transform-origin:50% 85%;transform:rotateX(0deg)}
+.ticket-stub>.ticket-front,.ticket-stub>.ticket-back,.ticket-stub>.ticket-edge{clip-path:inset(85% 0 0 0)}
+.ticket.checked .ticket-stub{transform:rotateX(-28deg)}
+.ticket.checked .ticket-stub .sheen{background:linear-gradient(180deg,transparent 85%,#0005 85.2%,#0001 99%)}
+.viewer-toolbar,.experience:has(.details-panel:not([hidden])) .viewer-toolbar{padding:0 2px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.gesture-hint,.experience:has(.details-panel:not([hidden])) .gesture-hint{font-size:10px;gap:6px;flex-wrap:wrap;justify-content:center}
+.setlist-hint{border:0;background:none;color:#78efcf;font:inherit;font-weight:600;padding:8px 2px;min-height:44px;cursor:pointer}
+.icon-button{min-height:44px;min-width:80px;font-size:11px;padding:8px 16px}
+.icon-button span{font-size:16px}
+.viewer-actions{gap:8px}
+.details-panel{width:360px;max-height:650px;margin-top:44px;padding:25px;scroll-margin-top:18px}
+.experience:has(.details-panel:not([hidden])) .ticket-stage{margin:0}
+.close-button{height:40px;width:40px;font-size:26px}
+.setlist-note{font-size:11px;line-height:1.8;margin:16px 0}
+.setlist-header{font-size:10px;grid-template-columns:32px 1fr 44px}
+.track{grid-template-columns:32px 1fr 44px;min-height:66px}
+.track-name{font-size:14px;padding:12px 8px 12px 0}
+.track-artist{font-size:11px}
+.youtube-link{width:40px;height:40px}
+.empty-state{font-size:13px}
+.setlist-refresh{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.setlist-refresh>span{color:#9d8caa;font-size:10px}
+.text-button{min-height:44px;font-size:12px}
+.registration{max-width:880px;grid-template-columns:.9fr 1.5fr;gap:40px;margin-top:36px}
+.registration-copy>p:not(.eyebrow){font-size:13px}
+.field label{font-size:13px}
+.field label>span{font-size:10px}
+.field input,.field textarea{font-size:16px;padding:13px;line-height:1.5}
+.field input::placeholder,.field textarea::placeholder{font-size:13px}
+.field label small{font-size:10px}
+.field-error{font-size:11px;min-height:20px}
+.consent{font-size:12px;line-height:1.7;gap:10px;margin:8px 0 16px}
+.consent input{width:18px;height:18px;margin-top:1px}
+.primary-button,.secondary-button{min-height:48px;font-size:13px}
+.primary-button #issueLabel{font-size:14px}
+.form-footnote{font-size:10px;text-align:left}
+.form-status{font-size:12px}
+.issued-section,.restore-area,.event-strip{max-width:880px}
+.issued-section{margin-top:34px}
+.manager-button{min-height:44px;font-size:12px;bottom:calc(14px + env(safe-area-inset-bottom))}
+.toast{bottom:calc(74px + env(safe-area-inset-bottom))}
+footer{padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+@media(max-width:1050px){
+  .experience:has(.details-panel:not([hidden])){gap:20px}
+  .details-panel{width:330px}
+}
+@media(max-width:760px){
+  main{padding:0 20px}
+  .site-header{padding:17px 20px}
+  .intro{padding-top:20px}
+  .intro h1{font-size:21px}
+  .intro-sub{font-size:10px;line-height:1.8;margin-top:8px}
+  .experience{margin-top:22px;display:block}
+  .ticket-stage,.experience:has(.details-panel:not([hidden])) .ticket-stage{max-width:400px;margin:0 auto}
+  .stage-caption{padding:0 7px;font-size:8px}
+  .perspective,.experience:has(.details-panel:not([hidden])) .perspective{padding:19px 8px 23px;perspective:1100px}
+  .ticket{max-width:360px}
+  .ticket-face,.ticket-edge{border-radius:11px}
+  .viewer-toolbar,.experience:has(.details-panel:not([hidden])) .viewer-toolbar{gap:3px}
+  .gesture-hint,.experience:has(.details-panel:not([hidden])) .gesture-hint{font-size:10px;gap:5px}
+  .gesture-hint svg{width:18px}
+  .icon-button{font-size:11px;padding:8px 15px}
+  .icon-button span{font-size:15px;margin-left:5px}
+  .details-panel{width:100%;max-height:none;margin-top:24px;padding:22px}
+  .registration{margin-top:28px;display:block;padding-top:24px}
+  .registration-copy{margin-bottom:21px}
+  .registration-copy>p:not(.eyebrow){font-size:12px;line-height:1.8}
+  .registration-copy>p br{display:block}
+  .registration-copy h2{font-size:22px}
+  .capacity{font-size:10px}
+  .form-row{gap:12px}
+  .field input,.field textarea{font-size:16px;padding:13px 11px}
+  .field input::placeholder,.field textarea::placeholder{font-size:12px}
+  .field label{font-size:12px}
+  .consent{font-size:11px}
+  .issued-section{display:block;padding:28px 0}
+  .issued-section p:last-child{font-size:12px}
+  .issued-actions{flex-wrap:wrap}
+  .issued-actions button{font-size:12px;min-height:48px}
+  .manager-button{right:12px}
+}
+@media(max-width:350px){
+  main{padding:0 14px}
+  .form-row{grid-template-columns:1fr;gap:0}
+  .intro-sub span{padding:0 2px}
+  .performers dd{font-size:3.7cqw}
+}
+

@@ -72,7 +72,7 @@
     try {
       const ticket = api.preview ? { name: payload.name, preview:true } : await api.request('issue', payload);
       showTicket(ticket,true);
-      if (!api.preview) refreshPublic();
+      if (!api.preview) refreshPublic(true);
     } catch (e) {
       $('formStatus').textContent = e.message || '발급 결과를 확인하지 못했어요. 다시 시도해 주세요.';
       if (e.code === 'SOLD_OUT') { soldOut = true; $('capacityText').textContent = '1,000장 발급이 모두 마감되었습니다.'; }
@@ -103,35 +103,62 @@
     }
   }
   $('restoreButton').addEventListener('click', () => restoreTicket());
-  let tracksLoaded=false;
-  async function refreshPublic() {
-    $('retrySetlist').hidden=true;
-    try {
-      const data=await api.request('public');
-      const tracks=Array.isArray(data.tracks) ? data.tracks : [];
-      $('setlist').replaceChildren();
-      for (const track of tracks) {
-        const li=document.createElement('li'); li.className='track';
-        const number=document.createElement('span'); number.className='track-no'; number.textContent=String(track.number).padStart(2,'0');
-        const name=document.createElement('span'); name.className='track-name'; name.textContent=track.title;
-        if (typeof track.artist === 'string' && track.artist.trim()) { const artist=document.createElement('span'); artist.className='track-artist'; artist.textContent=track.artist.trim(); name.append(artist); }
-        li.append(number,name);
-        const url=window.Jukebox.youtubeUrl(track.url);
-        if (url) { const a=document.createElement('a'); a.className='youtube-link'; a.href=url; a.target='_blank'; a.rel='noopener noreferrer'; a.setAttribute('aria-label',`${track.title} 유튜브에서 듣기`); a.innerHTML='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3 17 10 6 17Z"/></svg>'; li.append(a); }
-        else { const dash=document.createElement('span'); dash.className='track-unlinked'; dash.textContent='—'; li.append(dash); }
-        $('setlist').append(li);
+  let publicRequest = null, lastPublicSync = 0;
+  function refreshPublic(force = false) {
+    if (publicRequest) return publicRequest;
+    if (!force && Date.now() - lastPublicSync < 10000) return Promise.resolve();
+    $('retrySetlist').disabled = true;
+    $('retrySetlist').textContent = '불러오는 중…';
+    publicRequest = (async () => {
+      try {
+        const data = await api.request('public');
+        const tracks = Array.isArray(data.tracks) ? data.tracks : [];
+        const list = document.createDocumentFragment();
+        for (const track of tracks) {
+          const li=document.createElement('li'); li.className='track';
+          const number=document.createElement('span'); number.className='track-no'; number.textContent=String(track.number).padStart(2,'0');
+          const name=document.createElement('span'); name.className='track-name'; name.textContent=track.title;
+          if (typeof track.artist === 'string' && track.artist.trim()) { const artist=document.createElement('span'); artist.className='track-artist'; artist.textContent=track.artist.trim(); name.append(artist); }
+          li.append(number,name);
+          const url=window.Jukebox.youtubeUrl(track.url);
+          if (url) { const a=document.createElement('a'); a.className='youtube-link'; a.href=url; a.target='_blank'; a.rel='noopener noreferrer'; a.setAttribute('aria-label',`${track.title} 유튜브에서 듣기`); a.innerHTML='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3 17 10 6 17Z"/></svg>'; li.append(a); }
+          else { const dash=document.createElement('span'); dash.className='track-unlinked'; dash.textContent='—'; li.append(dash); }
+          list.append(li);
+        }
+        $('setlist').replaceChildren(list);
+        $('setlistState').hidden=tracks.length>0;
+        $('setlistState').textContent=api.preview ? '공연 셋리스트가 아직 연결되지 않았어요.' : '셋리스트를 준비하고 있어요. 곡이 등록되면 이곳에서 확인할 수 있습니다.';
+        if (Number.isInteger(data.issued)) {
+          $('capacityText').textContent=`${data.issued.toLocaleString()} / 1,000장 발급 완료`;
+          soldOut=data.issued>=1000;
+          if (!busy) { $('issueButton').disabled=soldOut; $('issueLabel').textContent=soldOut?'발급 마감':'나의 티켓 받기'; }
+          if (soldOut) $('capacityText').textContent='1,000장 발급이 모두 마감되었습니다.';
+        }
+        lastPublicSync=Date.now();
+        $('setlistUpdated').textContent='방금 업데이트';
+      } catch(e) {
+        $('setlistState').hidden=false;
+        $('setlistState').textContent=e.message || '셋리스트를 불러오지 못했어요. 새로고침을 눌러 주세요.';
+        $('setlistUpdated').textContent='연결을 다시 확인해 주세요';
+      } finally {
+        publicRequest=null;
+        $('retrySetlist').disabled=false;
+        $('retrySetlist').textContent='새로고침 ↻';
       }
-      $('setlistState').hidden=tracks.length>0;
-      $('setlistState').textContent=api.preview ? '공연 셋리스트가 아직 연결되지 않았어요. 운영자가 등록한 곡이 이곳에 표시됩니다.' : '셋리스트를 준비하고 있어요. 곡이 등록되면 이곳에서 확인할 수 있습니다.';
-      if (Number.isInteger(data.issued)) { $('capacityText').textContent=`${data.issued.toLocaleString()} / 1,000장 발급 완료`; soldOut=data.issued>=1000; if (soldOut) { $('capacityText').textContent='1,000장 발급이 모두 마감되었습니다.'; $('issueButton').disabled=true; $('issueLabel').textContent='발급 마감'; } }
-      tracksLoaded=true;
-    } catch(e) { $('setlistState').hidden=false; $('setlistState').textContent='셋리스트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'; $('retrySetlist').hidden=false; }
+    })();
+    return publicRequest;
   }
-  function openPanel() { $('detailsPanel').hidden=false; $('ticket').setAttribute('aria-expanded','true'); if (!tracksLoaded) refreshPublic(); }
+  function openPanel() {
+    $('detailsPanel').hidden=false;
+    $('ticket').setAttribute('aria-expanded','true');
+    refreshPublic(true);
+    if (matchMedia('(max-width: 760px)').matches) $('detailsPanel').scrollIntoView({behavior:reduced?'instant':'smooth',block:'start'});
+  }
   function closePanel() { $('detailsPanel').hidden=true; $('ticket').setAttribute('aria-expanded','false'); $('ticket').focus({preventScroll:true}); }
   $('closePanel').addEventListener('click',closePanel);
   $('showSetlistButton').addEventListener('click',()=>{openPanel(); $('detailsPanel').scrollIntoView({behavior:reduced?'instant':'smooth',block:'nearest'});});
-  $('retrySetlist').addEventListener('click',refreshPublic);
+  $('retrySetlist').addEventListener('click',()=>refreshPublic(true));
+  $('setlistHint').addEventListener('click',openPanel);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('detailsPanel').hidden)closePanel();});
   // Physical card: damped rotations, bounded tilt, drag inertia, cursor foil.
   const card=$('ticket');
@@ -149,7 +176,14 @@
     finally{checking=false;$('managerButton').disabled=issuedTicket.checked===true;}
   });
   async function syncCheck(){if(api.preview||!issuedTicket||checking||restoring||busy||document.hidden)return;restoring=true;try{const result=await api.request('restore',{token:local.token});if(result)showTicket(result);}catch{}finally{restoring=false;}}
-  setInterval(syncCheck,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncCheck();});
+  function syncVisible() {
+    if (document.hidden) return;
+    syncCheck();
+    if (!$('detailsPanel').hidden) refreshPublic();
+  }
+  setInterval(syncVisible,30000);
+  document.addEventListener('visibilitychange',syncVisible);
+  window.addEventListener('focus',syncVisible);
 
   const rotation={x:{current:5,target:5,velocity:0},y:{current:-8,target:-8,velocity:0},z:{current:-2,target:-2,velocity:0}};
   let frame=0, drag=null, dragged=false, lastFrame=0;
@@ -169,16 +203,17 @@
   card.addEventListener('pointerdown',event=>{
     if(event.button!==0)return;
     const rect=$('perspective').getBoundingClientRect();
-    drag={id:event.pointerId,x:event.clientX,y:event.clientY,rx:rotation.x.target,ry:rotation.y.target,lastX:event.clientX,lastTime:performance.now(),velocity:0,width:rect.width};dragged=false;card.setPointerCapture(event.pointerId);card.classList.add('dragging');
+    drag={id:event.pointerId,x:event.clientX,y:event.clientY,rx:rotation.x.target,ry:rotation.y.target,lastX:event.clientX,lastTime:performance.now(),velocity:0,width:rect.width,touch:event.pointerType==='touch'};dragged=false;card.setPointerCapture(event.pointerId);card.classList.add('dragging');
   });
   card.addEventListener('pointermove',event=>{
     const rect=$('perspective').getBoundingClientRect();const px=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width));const py=Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height));
     card.style.setProperty('--mx',`${px*100}%`);card.style.setProperty('--my',`${py*100}%`);card.style.setProperty('--foil-opacity',drag?'.15':'.09');
     if(!drag||event.pointerId!==drag.id)return;
     const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+    if(drag.touch&&!dragged&&Math.abs(dy)>Math.abs(dx))return;
     if(Math.hypot(dx,dy)>6)dragged=true;
     const now=performance.now();drag.velocity=(event.clientX-drag.lastX)/Math.max(1,now-drag.lastTime);drag.lastX=event.clientX;drag.lastTime=now;
-    rotation.y.target=drag.ry+dx/drag.width*270;rotation.x.target=Math.max(-48,Math.min(48,drag.rx-dy*.22));rotation.z.target=Math.max(-5,Math.min(5,dx*.008));animate();
+    rotation.y.target=drag.ry+dx/drag.width*270;rotation.x.target=drag.touch?0:Math.max(-48,Math.min(48,drag.rx-dy*.22));rotation.z.target=Math.max(-5,Math.min(5,dx*.008));animate();
   });
   function release(event,cancelled=false){if(!drag||event.pointerId!==drag.id)return;const velocity=performance.now()-drag.lastTime<90?drag.velocity:0;if(dragged&&!cancelled){rotation.y.target+=Math.max(-35,Math.min(35,velocity*23));rotation.x.target*=.35;rotation.z.target*=.25;animate();}if(card.hasPointerCapture(event.pointerId))card.releasePointerCapture(event.pointerId);drag=null;card.classList.remove('dragging');if(cancelled)dragged=true;}
   card.addEventListener('pointerup',e=>release(e));card.addEventListener('pointercancel',e=>release(e,true));
@@ -190,9 +225,20 @@
   $('downloadButton').addEventListener('click',async()=>{
     if(!issuedTicket)return;
     try{
-      const img=card.querySelector('img');await img.decode();const canvas=document.createElement('canvas');canvas.width=1728;canvas.height=672;const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,1728,672);
-      ctx.fillStyle='#a494b7';ctx.font='13px sans-serif';ctx.fillText('TICKET HOLDER',624,626);ctx.fillStyle='#f9d6ec';ctx.font='22px sans-serif';ctx.fillText(issuedTicket.name,750,628,460);
-      ctx.fillStyle='#ff80bd';ctx.font='26px monospace';ctx.fillText(issuedTicket.preview?'SAMPLE':`No. ${String(issuedTicket.serial).padStart(4,'0')}`,1335,628);ctx.fillStyle='#a494b7';ctx.font='13px sans-serif';ctx.fillText('/ 1000',1510,628);
+      const img=card.querySelector('img');await img.decode();
+      const canvas=document.createElement('canvas');
+      canvas.width=img.naturalWidth;
+      canvas.height=Math.round(img.naturalHeight/.85);
+      const ctx=canvas.getContext('2d'), w=canvas.width, h=canvas.height, cut=img.naturalHeight;
+      ctx.fillStyle='#130f25';ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,cut);
+      ctx.strokeStyle='#e66aaf';ctx.lineWidth=w*.002;ctx.setLineDash([w*.012,w*.01]);ctx.beginPath();ctx.moveTo(w*.035,cut);ctx.lineTo(w*.965,cut);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#b5a5c5';ctx.font=`${w*.02}px sans-serif`;ctx.fillText('ADMIT ONE · 자유석',w*.07,h*.89);ctx.textAlign='right';ctx.fillText('2026.11.21',w*.93,h*.89);
+      ctx.textAlign='left';ctx.fillStyle='#a494b7';ctx.font=`${w*.019}px sans-serif`;ctx.fillText('TICKET HOLDER',w*.07,h*.925);ctx.textAlign='right';ctx.fillText('LIMITED EDITION',w*.93,h*.925);
+      ctx.textAlign='left';ctx.fillStyle='#f9d6ec';ctx.font=`600 ${w*.04}px sans-serif`;ctx.fillText(issuedTicket.name,w*.07,h*.956,w*.48);
+      ctx.textAlign='right';ctx.fillStyle='#ff80bd';ctx.font=`${w*.042}px monospace`;ctx.fillText(issuedTicket.preview?'SAMPLE':`No. ${String(issuedTicket.serial).padStart(4,'0')}`,w*.93,h*.956);
+      ctx.globalCompositeOperation='destination-out';
+      for(const x of [0,w]){ctx.beginPath();ctx.arc(x,cut,w*.022,0,Math.PI*2);ctx.fill();}
+      ctx.globalCompositeOperation='source-over';
       const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw new Error();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`JUKEBOX-${issuedTicket.preview?'SAMPLE':String(issuedTicket.serial).padStart(4,'0')}.png`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('티켓 이미지를 저장했습니다.');
     }catch{toast('이미지 저장에 실패했어요. 다시 시도해 주세요.');}
   });
@@ -205,9 +251,10 @@
     if(local.ticket){try{showTicket(local.ticket);}catch{delete local.ticket;saveState(local);}}
     if(!api.preview){
       // Recover even when a previous request committed but the response was lost.
-      await restoreTicket(true);
+      await Promise.allSettled([restoreTicket(true), refreshPublic(true)]);
+    } else {
+      refreshPublic(true);
     }
-    refreshPublic();
   }
   init();
 })();
