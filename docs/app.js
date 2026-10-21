@@ -316,13 +316,13 @@
   window.addEventListener('focus',syncVisible);
 
   const rotation={x:{current:5,target:5,velocity:0},y:{current:-8,target:-8,velocity:0},z:{current:-2,target:-2,velocity:0}};
-  let frame=0, drag=null, dragged=false, lastFrame=0;
+  let frame=0, drag=null, dragged=false, lastFrame=0, tapOnCard=false;
   function paint() { card.style.transform=`rotateX(${rotation.x.current}deg) rotateY(${rotation.y.current}deg) rotateZ(${rotation.z.current}deg)`; const back=Math.cos(rotation.y.current*Math.PI/180)<0; card.querySelector('.ticket-front').setAttribute('aria-hidden',back); card.querySelector('.ticket-back').setAttribute('aria-hidden',!back); }
   function tick(now) {
     const dt=Math.min((now-lastFrame)/16.67||1,2); lastFrame=now;
     let moving=false;
     for (const axis of Object.values(rotation)) {
-      if(reduced){axis.current=axis.target;axis.velocity=0;continue;}
+      if(reduced || drag && dragged){axis.current=axis.target;axis.velocity=0;continue;}
       axis.velocity=(axis.velocity+(axis.target-axis.current)*.085*dt)*Math.pow(.68,dt); axis.current+=axis.velocity*dt;
       if(Math.abs(axis.target-axis.current)>.015||Math.abs(axis.velocity)>.015)moving=true; else axis.current=axis.target;
     }
@@ -334,7 +334,10 @@
     if(cutArmed || checking || event.button!==0 || !event.isPrimary || drag)return;
     if(event.target.closest('button,a,input,textarea,select,.cut-line'))return;
     const rect=$('perspective').getBoundingClientRect();
-    drag={id:event.pointerId,x:event.clientX,y:event.clientY,rx:rotation.x.target,ry:rotation.y.target,lastX:event.clientX,lastTime:performance.now(),velocity:0,width:rect.width,touch:event.pointerType==='touch',captureTarget:card.contains(event.target)?card:rotationSurface};dragged=false;drag.captureTarget.setPointerCapture(event.pointerId);card.classList.add('dragging');
+    tapOnCard=card.contains(event.target);
+    // Start from the visible angle, not an unfinished inertia target.
+    for(const axis of Object.values(rotation)){axis.target=axis.current;axis.velocity=0;}
+    drag={id:event.pointerId,x:event.clientX,y:event.clientY,rx:rotation.x.target,ry:rotation.y.target,lastX:event.clientX,lastTime:performance.now(),velocity:0,width:rect.width,touch:event.pointerType==='touch',captureTarget:rotationSurface,freeScroll:!event.target.closest('.perspective')};dragged=false;drag.captureTarget.setPointerCapture(event.pointerId);card.classList.add('dragging');
   });
   rotationSurface.addEventListener('pointermove',event=>{
     if(cutArmed || checking)return;
@@ -342,14 +345,34 @@
     card.style.setProperty('--mx',`${px*100}%`);card.style.setProperty('--my',`${py*100}%`);card.style.setProperty('--foil-opacity',drag?'.15':'.09');
     if(!drag||event.pointerId!==drag.id)return;
     const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
-    if(drag.touch&&!dragged&&Math.abs(dy)>Math.abs(dx))return;
-    if(Math.hypot(dx,dy)>6)dragged=true;
+    if(drag.touch && drag.freeScroll && !dragged && Math.abs(dy)>Math.abs(dx))return;
+    if(!dragged && Math.hypot(dx,dy)<=6)return;
+    dragged=true;
+    if(event.cancelable)event.preventDefault();
     const now=performance.now();drag.velocity=(event.clientX-drag.lastX)/Math.max(1,now-drag.lastTime);drag.lastX=event.clientX;drag.lastTime=now;
-    rotation.y.target=drag.ry+dx/drag.width*270;rotation.x.target=drag.touch?0:Math.max(-48,Math.min(48,drag.rx-dy*.22));rotation.z.target=Math.max(-5,Math.min(5,dx*.008));animate();
+    rotation.y.target=drag.ry+dx/drag.width*360;rotation.x.target=drag.touch?0:Math.max(-48,Math.min(48,drag.rx-dy*.22));rotation.z.target=Math.max(-5,Math.min(5,dx*.008));animate();
   });
-  function release(event,cancelled=false){if(!drag||event.pointerId!==drag.id)return;const velocity=performance.now()-drag.lastTime<90?drag.velocity:0;if(dragged&&!cancelled){rotation.y.target+=Math.max(-35,Math.min(35,velocity*23));rotation.x.target*=.35;rotation.z.target*=.25;animate();}if(drag.captureTarget.hasPointerCapture(event.pointerId))drag.captureTarget.releasePointerCapture(event.pointerId);drag=null;card.classList.remove('dragging');if(cancelled)dragged=true;}
-  rotationSurface.addEventListener('pointerup',e=>release(e));rotationSurface.addEventListener('pointercancel',e=>release(e,true));
-  card.addEventListener('click',()=>{if(!dragged && !cutArmed && !checking)openPanel();dragged=false;});
+  function release(event,cancelled=false){
+    if(!drag||event.pointerId!==drag.id)return;
+    const active=drag;
+    drag=null; // Clear before releasing capture: lostpointercapture may fire immediately.
+    const velocity=performance.now()-active.lastTime<90?active.velocity:0;
+    if(dragged&&!cancelled){
+      rotation.y.target+=Math.max(-100,Math.min(100,velocity*55));
+      rotation.x.target*=.35;rotation.z.target*=.25;animate();
+    }
+    if(active.captureTarget.hasPointerCapture(event.pointerId))active.captureTarget.releasePointerCapture(event.pointerId);
+    card.classList.remove('dragging');
+    if(cancelled){dragged=true;tapOnCard=false;}
+  }
+  rotationSurface.addEventListener('pointerup',e=>release(e));
+  rotationSurface.addEventListener('pointercancel',e=>release(e,true));
+  rotationSurface.addEventListener('lostpointercapture',e=>release(e,true));
+  rotationSurface.addEventListener('click',e=>{
+    if(e.target.closest('button,a,input,textarea,select,.cut-line'))return;
+    if(!dragged && !cutArmed && !checking && (tapOnCard||card.contains(e.target)))openPanel();
+    tapOnCard=false;dragged=false;
+  });
   rotationSurface.addEventListener('pointerleave',()=>{if(!drag){card.style.setProperty('--foil-opacity','.035');card.style.setProperty('--mx','50%');card.style.setProperty('--my','50%');}});
   card.addEventListener('keydown',e=>{if(cutArmed || checking){e.preventDefault();if(e.key==='Escape'&&!checking)setCutArmed(false);return;}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(e.key))e.preventDefault();if(e.key==='Enter'||e.key===' ')openPanel();if(e.key==='ArrowLeft')rotation.y.target-=20;if(e.key==='ArrowRight')rotation.y.target+=20;if(e.key==='ArrowUp')rotation.x.target=Math.min(48,rotation.x.target+10);if(e.key==='ArrowDown')rotation.x.target=Math.max(-48,rotation.x.target-10);if(e.key.toLowerCase()==='r')reset();animate();});
   $('flipButton').addEventListener('click',()=>{rotation.y.target=Math.round(rotation.y.target/180)*180+180;rotation.x.target=0;rotation.z.target=0;animate();});
