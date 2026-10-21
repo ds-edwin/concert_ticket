@@ -1,5 +1,45 @@
-# JUKEBOX concert ticket
+# JUKEBOX — 3D concert ticket
 
-Interactive concert ticket website with drag-to-rotate cards, a performer lineup, a setlist panel, and personal ticket numbers.
+네온 공연 티켓: 드래그 회전, 셋리스트, 악기별 참가자 명단, 1~1000번 티켓 발급, 확인 후 접힘 효과.
 
-The application is being prepared for deployment. Registration and check-in require a separately configured backend; this repository does not contain attendee records.
+## 현재 상태
+
+웹 소스와 Google Apps Script 설치 코드가 준비되었습니다. docs/config.js의 endpoint가 비어 있으면 샘플 모드로 동작하며 실제 신청 정보를 전송하지 않습니다.
+
+## Google 연결 — 한 파일 설치
+
+1. 사용할 티켓관리 Google Sheet에서 **확장 프로그램 → Apps Script**를 엽니다.
+2. [apps-script/INSTALL.gs](apps-script/INSTALL.gs)의 전체 내용을 Code.gs에 붙여 넣고 저장합니다. 이 파일에는 통신용 HTML도 포함되어 있습니다. 별도 Bridge 파일은 필요하지 않습니다.
+3. 상단 함수 선택에서 **setup → 실행**을 선택하고 소유자 계정으로 Google 권한을 승인합니다.
+4. **배포 → 새 배포 → 웹 앱**에서 실행 사용자는 **나**, 액세스 권한은 **모든 사용자**로 지정합니다.
+5. 생성된 /exec 주소를 docs/config.js의 endpoint에 넣습니다.
+
+시트 ID는 바인딩된 문서에서 읽어 비공개 스크립트 속성에 저장합니다. 이 저장소에는 명부 데이터나 시트 주소를 넣지 않습니다.
+
+### 시트 구조
+
+참석자 탭에는 입력일시 / 연번 / 이름 / 연락처_뒷번호 / 체크여부 / 하고 싶은 말 / _요청키를 사용합니다. 열 이름으로 찾으므로 7개 열의 순서를 바꾸어도 인식합니다. _요청키는 숨김 처리합니다. 연락처 뒷번호는 텍스트로 저장해 앞자리 0을 유지합니다.
+
+셋리스트 탭 A~D열은 연번 / 제목 / 아티스트 / url입니다. YouTube 링크만 표시합니다.
+
+실제 신청을 받기 전 시트 공유 범위는 **제한됨**으로 설정합니다. 웹 앱은 공개 셋리스트와 해당 브라우저의 티켓만 반환합니다.
+
+## GitHub Pages
+
+저장소 **Settings → Pages → Build and deployment → Deploy from a branch**를 선택합니다. Branch는 **main**, Folder는 **/docs**로 저장합니다. 공개 웹사이트에는 docs 폴더만 사용합니다.
+
+## 확인 기능
+
+- 발급된 티켓의 오른쪽 아래 매니저 확인을 누르면 해당 행에 O를 기록합니다.
+- 성공 응답 후 점선을 경계로 오른쪽 부분이 뒤로 28도 접힙니다.
+- 시트에서 직접 O를 넣거나 지우면 열린 페이지에서 30초 간격 및 화면 복귀 시 반영됩니다.
+- 버튼에 별도 관리자 인증은 없습니다. 티켓 소지자도 자신의 티켓을 확인할 수 있습니다.
+- 이름·연락처 뒷번호 조합으로 재발급을 제한하지 않습니다. 브라우저 요청키로 재시도 중복만 방지합니다.
+
+## 개발 및 검증
+
+`node tests/backend.test.cjs` — 발급 한도, 중복 방지, 열 순서, 체크 기록, 1000번째 행 확장 등 18개 검증.
+
+`node scripts/serve.cjs` — 로컬 웹 미리보기.
+
+서버 로직 단위 검증은 완료했으며 실제 Google 배포 후 전체 연결 확인이 필요합니다.

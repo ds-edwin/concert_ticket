@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d0b19">
+  <meta name="description" content="2026년 11월 21일, JUKEBOX OB 밴드 공연. 나만의 번호가 담긴 티켓을 간직하세요.">
+  <meta name="referrer" content="no-referrer">
+  <title>JUKEBOX — A night to keep</title>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./config.js"></script>
+  <script defer src="./api.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"><div class="orb orb-pink"></div><div class="orb orb-blue"></div><div class="floor-grid"></div></div>
+  <header class="site-header">
+    <a class="wordmark" href="./" aria-label="JUKEBOX 홈">JUKE<span>BOX</span><i>LIVE</i></a>
+    <div class="edition"><span class="status-dot"></span> KAIST OB BAND <span class="edition-year">/ 2026</span></div>
+  </header>
+  <div id="previewBanner" class="preview-banner" hidden>디자인 미리보기 · 실제 티켓은 발급되지 않습니다</div>
+  <main id="main">
+    <section class="intro" aria-labelledby="pageTitle">
+      <p class="eyebrow">A NIGHT TO KEEP</p>
+      <h1 id="pageTitle">이사님의 은밀한 취미생활</h1>
+      <p class="intro-sub">2026. 11. 21 <span>·</span> 오후 6시 <span>·</span> 논현 재즈클럽 그루브</p>
+    </section>
+    <div class="experience" id="experience">
+      <section class="ticket-stage" aria-label="3D 티켓 뷰어">
+        <div class="stage-caption"><span><i></i> YOUR COLLECTIBLE TICKET</span><span id="stageEdition">001 — 1000</span></div>
+        <div class="perspective" id="perspective">
+          <div class="ticket-aura" aria-hidden="true"></div>
+          <div id="ticket" class="ticket" tabindex="0" role="button" aria-label="티켓. 드래그 또는 방향키로 회전, 클릭 또는 Enter로 셋리스트 열기" aria-controls="detailsPanel" aria-expanded="false">
+            <div class="ticket-face ticket-front">
+              <img class="ticket-art" src="./assets/ticket-original.png" alt="JUKEBOX 주크박스 OB 밴드 공연. 2026년 11월 21일 토요일 오후 6시, 논현 재즈클럽 그루브, 5,000원, 자유석." draggable="false">
+              <div class="front-owner"><span>TICKET HOLDER</span><strong id="frontName">YOUR NAME</strong></div>
+              <div class="front-serial"><span>EDITION</span><strong id="frontSerial">No. ————</strong><small>/ 1000</small></div>
+              <div class="foil" aria-hidden="true"></div><div class="sheen" aria-hidden="true"></div>
+            </div>
+            <div class="ticket-face ticket-back" aria-hidden="true">
+              <div class="back-pattern"></div><div class="back-inner">
+                <div class="back-top"><span>KAIST 경영대학원 · OB BAND LIVE</span><b>ADMIT ONE</b></div>
+                <div class="back-lineup"><div class="lineup-heading"><small>THE PEOPLE BEHIND THE NIGHT</small><h2>JUKEBOX <span>LINEUP</span></h2></div><dl class="performers">
+                  <div><dt>Vocal</dt><dd>최용훈 / 심형민 / 홍주혜 / 김상현</dd></div>
+                  <div><dt>Guitar</dt><dd>김두환 / 이병훈 / 박지회</dd></div>
+                  <div><dt>Bass</dt><dd>김현진 / 오혜린</dd></div>
+                  <div><dt>Drum</dt><dd>김유진 / 윤석준 / Jayhat</dd></div>
+                  <div><dt>Keyboard</dt><dd>이선명 / 구영욱</dd></div>
+                </dl></div>
+                <div class="back-bottom"><div><small>TICKET HOLDER</small><strong id="backName">YOUR NAME</strong></div><div><small>LIMITED EDITION</small><strong id="backSerial">No. ————</strong></div><div class="back-venue">논현 재즈클럽 그루브<br>자유석 · 5,000원</div></div>
+              </div><div class="foil" aria-hidden="true"></div><div class="sheen" aria-hidden="true"></div>
+            </div>
+            <div class="ticket-edge" aria-hidden="true"></div>
+          </div>
+          <div class="ticket-shadow" aria-hidden="true"></div>
+        </div>
+        <div class="viewer-toolbar">
+          <span class="gesture-hint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V8a6 6 0 0 1 12 0v2M6 7 3 10l3 3m12-6 3 3-3 3M10 20v-6a2 2 0 0 1 4 0v6"/></svg>드래그해서 회전 <b>·</b> <span class="setlist-hint">클릭해서 셋리스트</span></span>
+          <div class="viewer-actions"><button id="flipButton" class="icon-button" type="button" aria-label="티켓 뒤집기" title="티켓 뒤집기">뒤집기 <span>↻</span></button><button id="resetButton" class="icon-button" type="button" aria-label="정면으로 돌리기" title="정면으로">정면 <span>⌖</span></button></div>
+        </div>
+      </section>
+      <aside class="details-panel" id="detailsPanel" aria-labelledby="panelTitle" hidden>
+        <div class="panel-head"><div><p class="eyebrow">TONIGHT'S TRACKS</p><h2 id="panelTitle">셋리스트<span>♪</span></h2></div><button type="button" id="closePanel" class="close-button" aria-label="셋리스트 닫기">×</button></div>
+        <p class="setlist-note">* 실제 공연 순서와는 무관합니다</p>
+        <div class="setlist-header" aria-hidden="true"><span>연번</span><span>곡명</span><span>유튜브</span></div>
+        <ol class="setlist" id="setlist"></ol>
+        <div id="setlistState" class="empty-state" role="status">셋리스트를 불러오는 중입니다.</div>
+        <button id="retrySetlist" class="text-button" hidden>다시 불러오기 ↗</button>
+        <div class="panel-foot"><span class="waveform" aria-hidden="true">▂ ▅ ▃ ▇ ▄ ▂ ▆ ▃</span><p>좋아하는 노래가 흐를 때,<br>함께 불러주세요.</p></div>
+      </aside>
+    </div>
+    <section class="registration" id="registration" aria-labelledby="registrationTitle">
+      <div class="registration-copy"><p class="eyebrow">MAKE IT YOURS</p><h2 id="registrationTitle">이 티켓의 주인공은?</h2><p>이름과 나만의 번호를 새겨<br>이 밤의 첫 장면을 간직하세요.</p><div class="capacity"><span class="status-dot"></span><span id="capacityText">총 1,000장의 고유 번호 티켓</span></div></div>
+      <form id="ticketForm" novalidate>
+        <div class="form-row"><div class="field"><label for="name">이름 <span>필수</span></label><input id="name" name="name" type="text" maxlength="40" autocomplete="name" placeholder="티켓에 새길 이름" required><small class="field-error" id="nameError"></small></div><div class="field"><label for="phoneLast4">연락처 뒷번호 <span>필수</span></label><input id="phoneLast4" name="phoneLast4" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="휴대전화 뒤 4자리" required><small class="field-error" id="phoneError"></small></div></div>
+        <div class="field message-field"><label for="message">하고 싶은 말 <span>선택</span><small id="charCount">0 / 100</small></label><textarea id="message" name="message" rows="2" placeholder="밴드에게 응원 한마디, 오늘의 기대 한 조각." aria-describedby="charCount"></textarea><small class="field-error" id="messageError"></small></div>
+        <label class="consent"><input id="consent" type="checkbox" required><span>공연 등록 확인을 위해 이름·연락처 뒤 4자리·메시지를 주최 측에 제출하는 데 동의합니다.</span></label>
+        <div class="form-status" id="formStatus" aria-live="polite"></div>
+        <button class="primary-button" id="issueButton" type="submit"><span id="issueLabel">나의 티켓 받기</span><span class="button-arrow" aria-hidden="true">↗</span></button>
+        <p class="form-footnote">번호는 등록 완료 순서로 부여됩니다. 티켓 발급은 결제 완료를 의미하지 않습니다.</p>
+      </form>
+    </section>
+    <section class="issued-section" id="issuedSection" hidden aria-live="polite"><div><p class="eyebrow" id="issuedEyebrow">IT'S YOURS</p><h2 id="issuedTitle">당신의 티켓이 준비됐어요.</h2><p id="issuedDetail"></p></div><div class="issued-actions"><button class="primary-button" id="downloadButton">티켓 이미지 저장 <span>↓</span></button><button class="secondary-button" id="showSetlistButton">셋리스트 보기 <span>↗</span></button></div></section>
+    <div id="restoreArea" class="restore-area" hidden><button type="button" id="restoreButton" class="text-button">내 티켓 다시 확인 ↻</button><p id="restoreStatus" class="form-status" role="status" aria-live="polite"></p></div>
+    <section class="event-strip" aria-label="공연 정보"><div><small>WHEN</small><p>11.21 <span>SAT / 18:00</span></p></div><div><small>WHERE</small><p>논현 재즈클럽 그루브</p></div><div><small>ADMISSION</small><p>5,000원 <span>자유석</span></p></div><div class="event-message">잠깐의 공연이,<br>오래 남을 기억으로.</div></section>
+  </main>
+  <footer><span>JUKEBOX <b>© 2026</b></span><span>MADE FOR THE MOMENT.</span></footer>
+  <button id="managerButton" class="manager-button" type="button" hidden>매니저 확인</button>
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>

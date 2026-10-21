@@ -1,0 +1,25 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"></head><body>
+<script>
+'use strict';
+const pageOrigin = <?!= originJson ?>;
+const channel = <?!= channelJson ?>;
+let connected = false;
+const announce = () => window.top.postMessage({type:'jukebox-bridge',channel,ready:true},pageOrigin);
+const readyTimer = setInterval(() => { if(!connected) announce(); },1000);
+setTimeout(()=>clearInterval(readyTimer),30000);
+window.addEventListener('message',event=>{
+  if(event.origin!==pageOrigin || event.source!==window.top) return;
+  const data=event.data;
+  if(!data || data.channel!==channel) return;
+  if(data.type==='jukebox-connect'){connected=true;clearInterval(readyTimer);return;}
+  if(data.type!=='jukebox-request'||!['public','restore','issue','check'].includes(data.action)||typeof data.requestId!=='string'||!/^[a-f0-9-]{36}$/i.test(data.requestId))return;
+  const reply=result=>window.top.postMessage({type:'jukebox-bridge',channel,requestId:data.requestId,result},pageOrigin);
+  google.script.run
+    .withSuccessHandler(reply)
+    .withFailureHandler(()=>reply({ok:false,code:'NETWORK',message:'등록 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'}))
+    .bridgeRequest(data.action,data.payload||{},pageOrigin);
+});
+announce();
+</script>
+</body></html>
