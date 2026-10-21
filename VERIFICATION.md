@@ -1,12 +1,11 @@
 # Verification
 
-- Backend adapter checks: 18/18 passed.
-- Live spreadsheet prepared: E=체크여부, F=하고 싶은 말, G=_요청키 (hidden).
-- Backend maps columns by title and preserves their order.
-- The 1000th ticket grows the default 1000-row sheet for its header.
-- Frontend syntax checked; stub rotates 28 degrees away from the viewer.
-- No live attendee issued or checked during this task.
-- GitHub Pages deployment succeeded on 2026-10-21; the public site loads at https://ds-edwin.github.io/concert_ticket/.
-- The deployed Apps Script bridge returned the live issued count (0 / 1000) and an empty setlist without browser console warnings or errors.
-- Public browser checks confirmed the compact heading, mint setlist hint, ticket flip, performer lineup, and setlist panel.
-- Live issuance and manager check-in remain untested because issuing a test ticket consumes a permanent serial number. Backend adapter tests cover both paths.
+- Backend adapter tests: 18/18 passed in the initial implementation.
+- The production Apps Script uses the spreadsheet where setup was run. A different similarly purposed spreadsheet was initially inspected; production records were preserved.
+- Live issuance was verified with one synthetic registration (No. 0003).
+- Clicking manager confirmation wrote O to that same test row in the production spreadsheet.
+- The production setlist contains four tracks.
+- The frontend now refreshes the setlist on each opening, with a manual refresh button and a 30-second refresh while visible.
+- The supplied portrait artwork is unchanged; a bottom stub is added in the UI and PNG export.
+- Mobile controls allow vertical scrolling over the ticket and use larger touch targets and 16px form fields.
+- Frontend JavaScript syntax checks passed. Post-deployment mobile visual verification is in progress.
