@@ -9,10 +9,10 @@
   <title>JUKEBOX — A night to keep</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=20261022-direct">
-  <link rel="stylesheet" href="./portrait.css?v=20261022-haptic">
+  <link rel="stylesheet" href="./portrait.css?v=20261022-wide-drag">
   <script defer src="./config.js?v=20261022-direct"></script>
   <script defer src="./api.js?v=20261022-direct"></script>
-  <script defer src="./app.js?v=20261022-haptic"></script>
+  <script defer src="./app.js?v=20261022-wide-drag"></script>
 </head>
 <body>
   <div class="atmosphere" aria-hidden="true"><div class="orb orb-pink"></div><div class="orb orb-blue"></div><div class="floor-grid"></div></div>
@@ -54,7 +54,7 @@
           <div class="ticket-shadow" aria-hidden="true"></div>
         </div>
         <div class="viewer-toolbar">
-          <span class="gesture-hint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V8a6 6 0 0 1 12 0v2M6 7 3 10l3 3m12-6 3 3-3 3M10 20v-6a2 2 0 0 1 4 0v6"/></svg>드래그해서 회전 <b>·</b> <button class="setlist-hint" id="setlistHint" type="button" aria-controls="detailsPanel">클릭해서 셋리스트</button></span>
+          <span class="gesture-hint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V8a6 6 0 0 1 12 0v2M6 7 3 10l3 3m12-6 3 3-3 3M10 20v-6a2 2 0 0 1 4 0v6"/></svg>주변을 좌우로 드래그해서 회전 <b>·</b> <button class="setlist-hint" id="setlistHint" type="button" aria-controls="detailsPanel">클릭해서 셋리스트</button></span>
           <div class="viewer-actions"><button id="flipButton" class="icon-button" type="button" aria-label="티켓 뒤집기" title="티켓 뒤집기">뒤집기 <span>↻</span></button><button id="resetButton" class="icon-button" type="button" aria-label="정면으로 돌리기" title="정면으로">정면 <span>⌖</span></button></div>
         </div>
         <p id="cutStatus" class="cut-status" role="status" aria-live="polite"></p>
