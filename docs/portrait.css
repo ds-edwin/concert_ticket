@@ -171,3 +171,10 @@ footer{padding-bottom:24px}
 .ticket-stage{touch-action:pan-y pinch-zoom;user-select:none;cursor:grab}
 .ticket-stage:has(.dragging){cursor:grabbing}
 .ticket-stage:has(.cut-armed){cursor:default}
+
+/* Decide touch ownership before a gesture starts; rotating faces must not lose it. */
+.perspective{touch-action:pinch-zoom}
+.ticket{touch-action:pinch-zoom;-webkit-user-select:none;-webkit-touch-callout:none}
+.perspective:has(.cut-armed){touch-action:pan-y pinch-zoom}
+.ticket.cut-armed{touch-action:pan-y pinch-zoom}
+.ticket-art{-webkit-user-drag:none}
