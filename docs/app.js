@@ -7,7 +7,7 @@
   const storageKey = `jukebox:${config.eventId}:${api.preview ? 'preview' : config.endpoint}`;
   let issuedTicket = null, busy = false, soldOut = false, restoring = false, toastTimer;
   let restoreRequest = null, restoreInteractive = false;
-  let cutArmed = false, cutGesture = null;
+  let cutArmed = false, cutGesture = null, checkRevision = 0;
   function readState() { try { return JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch { return null; } }
   function saveState(value) { try { localStorage.setItem(storageKey, JSON.stringify(value)); return true; } catch { return false; } }
   let local = readState() || {};
@@ -41,12 +41,14 @@
   function showTicket(ticket, celebrate = false) {
     if (!ticket || typeof ticket.name !== 'string' || (!ticket.preview && (!Number.isInteger(ticket.serial) || ticket.serial < 1 || ticket.serial > 1000))) throw new Error('잘못된 발급 응답입니다.');
     issuedTicket = ticket;
-    $('ticket').classList.toggle('checked', ticket.checked === true);
+    if (ticket.checked === true) delete local.pendingCheck;
+    $('ticket').classList.toggle('checked', ticket.checked === true || local.pendingCheck === true);
     $('managerButton').hidden = false;
     $('managerButton').disabled = ticket.checked === true;
     $('managerButton').textContent = ticket.checked ? '확인 완료 ✓' : cutArmed ? '매니저 확인 해제' : '매니저 확인';
     if (ticket.checked) setCutArmed(false);
-    $('cutStatus').textContent = ticket.checked ? '입장 확인 완료' : cutArmed ? '빛나는 점선을 한쪽 끝에서 약 70%만 그어주세요.' : '';
+    $('cutStatus').textContent = ticket.checked ? '입장 확인 완료' : local.pendingCheck ? '티켓은 잘렸어요. 입장 확인 저장을 기다리고 있어요.' : cutArmed ? '점선 어디서든 좌우로 약 40%만 그어주세요.' : '';
+    if (local.pendingCheck) $('managerButton').textContent = checking ? '입장 확인 저장 중…' : '입장 확인 저장 재시도';
     local.ticket = ticket;
     saveState(local);
     const serial = ticket.preview ? 'SAMPLE' : `No. ${String(ticket.serial).padStart(4,'0')}`;
@@ -89,6 +91,8 @@
   // Only a successful, explicit missing-record response may clear a cached ticket.
   function clearDeletedTicket() {
     issuedTicket = null;
+    checkRevision++;
+    delete local.pendingCheck;
     setCutArmed(false);
     $('cutStatus').textContent = '';
     delete local.ticket;
@@ -134,7 +138,10 @@
     restoring = true;
     $('restoreButton').disabled = true;
     $('restoreButton').textContent = '내 티켓 확인 중…';
+    const revision = checkRevision;
     restoreRequest = api.request('restore', { token: local.token }).then(ticket => {
+      // A lookup started before a tear must not undo its immediate visual state.
+      if (revision !== checkRevision) return;
       if (ticket) {
         showTicket(ticket);
         if (restoreInteractive) $('restoreStatus').textContent = `기존 티켓 No. ${String(ticket.serial).padStart(4,'0')}을 불러왔어요.`;
@@ -216,7 +223,7 @@
     $('managerButton').textContent = issuedTicket?.checked ? '확인 완료 ✓' : value ? '매니저 확인 해제' : '매니저 확인';
     $('flipButton').disabled = $('resetButton').disabled = value;
     cutLine.tabIndex = value ? 0 : -1;
-    $('cutStatus').textContent = value ? '빛나는 점선을 한쪽 끝에서 약 70%만 그어주세요.' : '';
+    $('cutStatus').textContent = value ? '점선 어디서든 좌우로 약 40%만 그어주세요.' : '';
     if(value) {
       if(drag?.captureTarget.hasPointerCapture(drag.id)) drag.captureTarget.releasePointerCapture(drag.id);
       drag = null;
@@ -228,35 +235,49 @@
   }
   $('managerButton').addEventListener('click',()=>{
     if(!issuedTicket || checking || restoring || issuedTicket.checked) return;
+    if (local.pendingCheck) { finishCut(); return; }
     setCutArmed(!cutArmed);
   });
   async function finishCut() {
-    if(!cutArmed || checking || !issuedTicket || issuedTicket.checked) return;
-    cancelCutGesture();
+    if ((!cutArmed && !local.pendingCheck) || checking || !issuedTicket || issuedTicket.checked) return;
     checking = true;
+    checkRevision++;
+    local.pendingCheck = true;
+    saveState(local);
+    setCutArmed(false);
+    // Separate the visual tear from the server's confirmed check value.
+    card.classList.add('checked');
     $('managerButton').disabled = true;
-    card.classList.add('cut-saving');
-    $('cutStatus').textContent = '입장 확인을 기록하고 있어요…';
+    $('managerButton').textContent = '입장 확인 저장 중…';
+    $('cutStatus').textContent = '티켓은 잘렸어요. 입장 확인을 기록하고 있어요…';
     try {
+      // Allow the torn state to paint before starting any network work.
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const result = api.preview ? {...issuedTicket,checked:true} : await api.request('check',{token:local.token});
+      if (!result || typeof result.checked !== 'boolean') throw new Error('입장 확인 결과를 확인하지 못했어요.');
+      delete local.pendingCheck;
       showTicket(result);
-      toast(api.preview ? '티켓 자르기 미리보기입니다.' : '입장 확인이 기록되었습니다.');
+      toast(result.checked ? (api.preview ? '티켓 자르기 미리보기입니다.' : '입장 확인이 기록되었습니다.') : '시트의 최종 확인 상태를 반영했습니다.');
     } catch(e) {
-      $('cutStatus').textContent = e.message || '저장하지 못했어요. 점선을 다시 그어주세요.';
+      // An ambiguous failure is not proof that the write failed: retain the tear.
+      $('cutStatus').textContent = '잘린 상태는 유지됩니다. 저장 확인이 늦어지고 있어요. 아래 버튼으로 다시 시도할 수 있어요.';
     } finally {
       checking = false;
-      card.classList.remove('cut-saving');
       $('managerButton').disabled = issuedTicket?.checked === true;
+      if (local.pendingCheck) $('managerButton').textContent = '입장 확인 저장 재시도';
     }
   }
   cutLine.addEventListener('pointerdown',e=>{
     if(!cutArmed || checking || e.button!==0 || !e.isPrimary) return;
     e.stopPropagation();e.preventDefault();
     const rect=cutLine.getBoundingClientRect(),x=(e.clientX-rect.left)/rect.width;
-    if(x>.22 && x<.78){$('cutStatus').textContent='점선의 왼쪽 또는 오른쪽 끝에서 시작해 주세요.';return;}
-    cutGesture={id:e.pointerId,start:x,right:x>=.78,rect,progress:0,touch:e.pointerType==='touch',hapticStep:0};
+    if(x<0 || x>1) return;
+    cutGesture={id:e.pointerId,start:x,rect,progress:0,touch:e.pointerType==='touch',hapticStep:0};
     if(cutGesture.touch) cutHaptic(8);
-    card.style.setProperty('--cut-origin',x>=.78?'right':'left');
+    cutLine.querySelector('.cut-trace').style.left = `${x*100}%`;
+    cutLine.querySelector('.cut-trace').style.right = 'auto';
+    cutLine.querySelector('.cut-trace').style.width = '100%';
+    card.style.setProperty('--cut-origin','left');
     cutLine.setPointerCapture(e.pointerId);
   });
   cutLine.addEventListener('pointermove',e=>{
@@ -264,11 +285,13 @@
     e.stopPropagation();e.preventDefault();
     const g=cutGesture,x=(e.clientX-g.rect.left)/g.rect.width;
     if(Math.abs(e.clientY-(g.rect.top+g.rect.height/2))>42){cancelCutGesture();return;}
-    g.progress=Math.max(0,Math.min(1,g.right?g.start-x:x-g.start));
+    const boundedX=Math.max(0,Math.min(1,x));
+    g.progress=Math.abs(boundedX-g.start);
+    cutLine.querySelector('.cut-trace').style.left = `${Math.min(g.start,boundedX)*100}%`;
     card.style.setProperty('--cut-progress',String(g.progress));
     const step=Math.floor(g.progress*10);
     if(g.touch && step>g.hapticStep){g.hapticStep=step;cutHaptic(8);}
-    if(g.progress>=.70) {
+    if(g.progress>=.40 - 1e-9) {
       const touch=g.touch;
       finishCut();
       if(touch) cutHaptic([18,25,25]);
