@@ -184,6 +184,7 @@
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('detailsPanel').hidden)closePanel();});
   // Physical card: damped rotations, bounded tilt, drag inertia, cursor foil.
   const card=$('ticket');
+  const rotationSurface=card.closest('.ticket-stage');
   const stub=document.createElement('div'); stub.className='ticket-stub';stub.setAttribute('aria-hidden','true');
   for(const face of [...card.children]) {const copy=face.cloneNode(true);copy.removeAttribute('aria-hidden');for(const el of copy.querySelectorAll('[id]')){el.dataset.mirror=el.id;el.removeAttribute('id');}stub.append(copy);}
   card.append(stub);
@@ -217,6 +218,7 @@
     cutLine.tabIndex = value ? 0 : -1;
     $('cutStatus').textContent = value ? '빛나는 점선을 한쪽 끝에서 약 70%만 그어주세요.' : '';
     if(value) {
+      if(drag?.captureTarget.hasPointerCapture(drag.id)) drag.captureTarget.releasePointerCapture(drag.id);
       drag = null;
       card.classList.remove('dragging');
       for(const axis of Object.values(rotation)) { axis.current=0;axis.target=0;axis.velocity=0; }
@@ -305,12 +307,13 @@
   }
   function animate(){if(!frame){lastFrame=performance.now();frame=requestAnimationFrame(tick);}}
   function reset(){rotation.x.target=0;rotation.y.target=Math.round(rotation.y.current/360)*360;rotation.z.target=0;animate();}
-  card.addEventListener('pointerdown',event=>{
-    if(cutArmed || checking || event.button!==0)return;
+  rotationSurface.addEventListener('pointerdown',event=>{
+    if(cutArmed || checking || event.button!==0 || !event.isPrimary || drag)return;
+    if(event.target.closest('button,a,input,textarea,select,.cut-line'))return;
     const rect=$('perspective').getBoundingClientRect();
-    drag={id:event.pointerId,x:event.clientX,y:event.clientY,rx:rotation.x.target,ry:rotation.y.target,lastX:event.clientX,lastTime:performance.now(),velocity:0,width:rect.width,touch:event.pointerType==='touch'};dragged=false;card.setPointerCapture(event.pointerId);card.classList.add('dragging');
+    drag={id:event.pointerId,x:event.clientX,y:event.clientY,rx:rotation.x.target,ry:rotation.y.target,lastX:event.clientX,lastTime:performance.now(),velocity:0,width:rect.width,touch:event.pointerType==='touch',captureTarget:card.contains(event.target)?card:rotationSurface};dragged=false;drag.captureTarget.setPointerCapture(event.pointerId);card.classList.add('dragging');
   });
-  card.addEventListener('pointermove',event=>{
+  rotationSurface.addEventListener('pointermove',event=>{
     if(cutArmed || checking)return;
     const rect=$('perspective').getBoundingClientRect();const px=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width));const py=Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height));
     card.style.setProperty('--mx',`${px*100}%`);card.style.setProperty('--my',`${py*100}%`);card.style.setProperty('--foil-opacity',drag?'.15':'.09');
@@ -321,10 +324,10 @@
     const now=performance.now();drag.velocity=(event.clientX-drag.lastX)/Math.max(1,now-drag.lastTime);drag.lastX=event.clientX;drag.lastTime=now;
     rotation.y.target=drag.ry+dx/drag.width*270;rotation.x.target=drag.touch?0:Math.max(-48,Math.min(48,drag.rx-dy*.22));rotation.z.target=Math.max(-5,Math.min(5,dx*.008));animate();
   });
-  function release(event,cancelled=false){if(!drag||event.pointerId!==drag.id)return;const velocity=performance.now()-drag.lastTime<90?drag.velocity:0;if(dragged&&!cancelled){rotation.y.target+=Math.max(-35,Math.min(35,velocity*23));rotation.x.target*=.35;rotation.z.target*=.25;animate();}if(card.hasPointerCapture(event.pointerId))card.releasePointerCapture(event.pointerId);drag=null;card.classList.remove('dragging');if(cancelled)dragged=true;}
-  card.addEventListener('pointerup',e=>release(e));card.addEventListener('pointercancel',e=>release(e,true));
+  function release(event,cancelled=false){if(!drag||event.pointerId!==drag.id)return;const velocity=performance.now()-drag.lastTime<90?drag.velocity:0;if(dragged&&!cancelled){rotation.y.target+=Math.max(-35,Math.min(35,velocity*23));rotation.x.target*=.35;rotation.z.target*=.25;animate();}if(drag.captureTarget.hasPointerCapture(event.pointerId))drag.captureTarget.releasePointerCapture(event.pointerId);drag=null;card.classList.remove('dragging');if(cancelled)dragged=true;}
+  rotationSurface.addEventListener('pointerup',e=>release(e));rotationSurface.addEventListener('pointercancel',e=>release(e,true));
   card.addEventListener('click',()=>{if(!dragged && !cutArmed && !checking)openPanel();dragged=false;});
-  card.addEventListener('pointerleave',()=>{if(!drag){card.style.setProperty('--foil-opacity','.035');card.style.setProperty('--mx','50%');card.style.setProperty('--my','50%');}});
+  rotationSurface.addEventListener('pointerleave',()=>{if(!drag){card.style.setProperty('--foil-opacity','.035');card.style.setProperty('--mx','50%');card.style.setProperty('--my','50%');}});
   card.addEventListener('keydown',e=>{if(cutArmed || checking){e.preventDefault();if(e.key==='Escape'&&!checking)setCutArmed(false);return;}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(e.key))e.preventDefault();if(e.key==='Enter'||e.key===' ')openPanel();if(e.key==='ArrowLeft')rotation.y.target-=20;if(e.key==='ArrowRight')rotation.y.target+=20;if(e.key==='ArrowUp')rotation.x.target=Math.min(48,rotation.x.target+10);if(e.key==='ArrowDown')rotation.x.target=Math.max(-48,rotation.x.target-10);if(e.key.toLowerCase()==='r')reset();animate();});
   $('flipButton').addEventListener('click',()=>{rotation.y.target=Math.round(rotation.y.target/180)*180+180;rotation.x.target=0;rotation.z.target=0;animate();});
   $('resetButton').addEventListener('click',reset);
