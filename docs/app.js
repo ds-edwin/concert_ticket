@@ -103,43 +103,81 @@
     }
   }
   $('restoreButton').addEventListener('click', () => restoreTicket());
-  let publicRequest = null, lastPublicSync = 0;
+  const publicCacheKey = storageKey + ':setlist';
+  let publicRequest = null, lastPublicSync = 0, displayedSetlist = null;
+  function validSetlist(value) {
+    return value && Number.isFinite(Date.parse(value.updatedAt)) && Array.isArray(value.tracks)
+      && value.tracks.length <= 1000 && value.tracks.every(track => track
+        && Number.isInteger(track.number) && track.number > 0
+        && typeof track.title === 'string' && track.title.trim());
+  }
+  function setlistTime(value) {
+    return new Date(value).toLocaleString('ko-KR', {timeZone:'Asia/Seoul',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+  }
+  function renderTracks(tracks) {
+    const list = document.createDocumentFragment();
+    for (const track of tracks) {
+      const li=document.createElement('li'); li.className='track';
+      const number=document.createElement('span'); number.className='track-no'; number.textContent=String(track.number).padStart(2,'0');
+      const name=document.createElement('span'); name.className='track-name'; name.textContent=track.title;
+      if (typeof track.artist === 'string' && track.artist.trim()) { const artist=document.createElement('span'); artist.className='track-artist'; artist.textContent=track.artist.trim(); name.append(artist); }
+      li.append(number,name);
+      const url=window.Jukebox.youtubeUrl(track.url);
+      if (url) { const a=document.createElement('a'); a.className='youtube-link'; a.href=url; a.target='_blank'; a.rel='noopener noreferrer'; a.setAttribute('aria-label',track.title + ' 유튜브에서 듣기'); a.innerHTML='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3 17 10 6 17Z"/></svg>'; li.append(a); }
+      else { const dash=document.createElement('span'); dash.className='track-unlinked'; dash.textContent='—'; li.append(dash); }
+      list.append(li);
+    }
+    $('setlist').replaceChildren(list);
+    $('setlistState').hidden=tracks.length>0;
+    $('setlistState').textContent=api.preview ? '공연 셋리스트가 아직 연결되지 않았어요.' : '셋리스트를 준비하고 있어요. 곡이 등록되면 이곳에서 확인할 수 있습니다.';
+  }
+  function showSavedSetlist() {
+    if (api.preview) return;
+    let cached;
+    try { cached=JSON.parse(localStorage.getItem(publicCacheKey) || 'null'); } catch {}
+    const candidates=[config.setlistSnapshot,cached].filter(validSetlist);
+    candidates.sort((a,b)=>Date.parse(b.updatedAt)-Date.parse(a.updatedAt));
+    if (!candidates.length) return;
+    displayedSetlist=candidates[0];
+    renderTracks(displayedSetlist.tracks);
+    $('setlistUpdated').textContent=setlistTime(displayedSetlist.updatedAt)+' 확인 · 최신 목록 확인 중';
+  }
   function refreshPublic(force = false) {
     if (publicRequest) return publicRequest;
     if (!force && Date.now() - lastPublicSync < 10000) return Promise.resolve();
     $('retrySetlist').disabled = true;
-    $('retrySetlist').textContent = '불러오는 중…';
+    $('retrySetlist').textContent = '새 목록 확인 중…';
+    if (!displayedSetlist) {
+      $('setlistState').hidden=false;
+      $('setlistState').textContent='셋리스트를 불러오는 중입니다.';
+    }
     publicRequest = (async () => {
       try {
         const data = await api.request('public');
-        const tracks = Array.isArray(data.tracks) ? data.tracks : [];
-        const list = document.createDocumentFragment();
-        for (const track of tracks) {
-          const li=document.createElement('li'); li.className='track';
-          const number=document.createElement('span'); number.className='track-no'; number.textContent=String(track.number).padStart(2,'0');
-          const name=document.createElement('span'); name.className='track-name'; name.textContent=track.title;
-          if (typeof track.artist === 'string' && track.artist.trim()) { const artist=document.createElement('span'); artist.className='track-artist'; artist.textContent=track.artist.trim(); name.append(artist); }
-          li.append(number,name);
-          const url=window.Jukebox.youtubeUrl(track.url);
-          if (url) { const a=document.createElement('a'); a.className='youtube-link'; a.href=url; a.target='_blank'; a.rel='noopener noreferrer'; a.setAttribute('aria-label',`${track.title} 유튜브에서 듣기`); a.innerHTML='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3 17 10 6 17Z"/></svg>'; li.append(a); }
-          else { const dash=document.createElement('span'); dash.className='track-unlinked'; dash.textContent='—'; li.append(dash); }
-          list.append(li);
-        }
-        $('setlist').replaceChildren(list);
-        $('setlistState').hidden=tracks.length>0;
-        $('setlistState').textContent=api.preview ? '공연 셋리스트가 아직 연결되지 않았어요.' : '셋리스트를 준비하고 있어요. 곡이 등록되면 이곳에서 확인할 수 있습니다.';
+        const snapshot={tracks:data?.tracks,updatedAt:new Date().toISOString()};
+        if (!validSetlist(snapshot)) throw new Error('셋리스트 응답을 확인하지 못했어요.');
+        displayedSetlist=snapshot;
+        renderTracks(snapshot.tracks);
+        // Store public songs only. Ticket-holder details are never included.
+        if (!api.preview) { try { localStorage.setItem(publicCacheKey,JSON.stringify(snapshot)); } catch {} }
         if (Number.isInteger(data.issued)) {
-          $('capacityText').textContent=`${data.issued.toLocaleString()} / 1,000장 발급 완료`;
+          $('capacityText').textContent=data.issued.toLocaleString()+' / 1,000장 발급 완료';
           soldOut=data.issued>=1000;
           if (!busy) { $('issueButton').disabled=soldOut; $('issueLabel').textContent=soldOut?'발급 마감':'나의 티켓 받기'; }
           if (soldOut) $('capacityText').textContent='1,000장 발급이 모두 마감되었습니다.';
         }
         lastPublicSync=Date.now();
         $('setlistUpdated').textContent='방금 업데이트';
+        delete $('setlistState').dataset.error;
       } catch(e) {
-        $('setlistState').hidden=false;
-        $('setlistState').textContent=e.message || '셋리스트를 불러오지 못했어요. 새로고침을 눌러 주세요.';
-        $('setlistUpdated').textContent='연결을 다시 확인해 주세요';
+        $('setlistState').dataset.error=e.code || 'RESPONSE';
+        if (displayedSetlist) {
+          $('setlistUpdated').textContent=setlistTime(displayedSetlist.updatedAt)+' 확인 · 최신 조회 지연';
+        } else {
+          $('setlistState').hidden=false;
+          $('setlistState').textContent='셋리스트를 불러오지 못했어요. 새로고침을 눌러 주세요.';
+          $('setlistUpdated').textContent='연결을 다시 확인해 주세요';
+        }
       } finally {
         publicRequest=null;
         $('retrySetlist').disabled=false;
@@ -248,6 +286,7 @@
     if(api.preview){$('issueLabel').textContent='샘플 티켓 보기';$('capacityText').textContent='미리보기 · 실제 번호 미발급';}
     if(!api.preview&&!persistent)$('formStatus').textContent='브라우저 저장 기능이 꺼져 있습니다. 저장 기능을 허용해야 티켓을 발급할 수 있어요.';
     paint();
+    showSavedSetlist();
     if(local.ticket){try{showTicket(local.ticket);}catch{delete local.ticket;saveState(local);}}
     if(!api.preview){
       // Recover even when a previous request committed but the response was lost.

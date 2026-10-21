@@ -1,10 +1,17 @@
-/* A Google Apps Script iframe bridge avoids opaque no-cors responses.
-   Only a confirmed server response is treated as a successful issue. */
+/* Google Apps Script bridge with bounded retries for read-only requests.
+   Issuance/check-in are never automatically replayed. */
 (function () {
   'use strict';
   const config = window.TICKET_CONFIG;
   const error = (code, message) => Object.assign(new Error(message), { code });
-  const uuid = () => crypto.randomUUID();
+  const uuid = () => {
+    if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    return [hex.slice(0,8),hex.slice(8,12),hex.slice(12,16),hex.slice(16,20),hex.slice(20)].join('-');
+  };
   function youtubeUrl(value) {
     try {
       const u = new URL(value);
@@ -16,38 +23,62 @@
     constructor() {
       this.preview = !config.endpoint;
       this.pending = new Map();
-      this.channel = uuid();
+      this.generation = 0;
       this.connection = null;
       this.remote = null;
       this.remoteOrigin = null;
       this.listener = event => this.onMessage(event);
       window.addEventListener('message', this.listener);
     }
+    disconnect(generation, reason) {
+      if (generation !== this.generation) return;
+      clearTimeout(this.connectTimer);
+      const rejectReady = this.rejectReady;
+      this.resolveReady = this.rejectReady = null;
+      this.connection = null;
+      this.remote = this.remoteOrigin = null;
+      this.iframe?.remove();
+      this.iframe = null;
+      if (rejectReady) rejectReady(reason);
+      for (const pending of this.pending.values()) {
+        clearTimeout(pending.timer);
+        pending.reject(error(reason.code, pending.action === 'issue'
+          ? '발급 결과를 확인하지 못했어요. 같은 정보로 다시 누르면 중복 발급 없이 확인합니다.'
+          : '서버 연결이 끊겼어요. 잠시 후 다시 시도해 주세요.'));
+      }
+      this.pending.clear();
+    }
     connect() {
       if (this.connection) return this.connection;
+      let url;
+      try {
+        url = new URL(config.endpoint);
+        if (url.origin !== 'https://script.google.com' || !/^\/macros\/s\/[\w-]+\/exec$/.test(url.pathname)) throw new Error();
+      } catch { return Promise.reject(error('CONFIG', '발급 서버 주소를 확인해 주세요.')); }
+      if (!/^https?:/.test(location.protocol)) return Promise.reject(error('CONFIG', '웹 주소에서 페이지를 열어 주세요.'));
+      const generation = ++this.generation;
+      this.channel = uuid();
+      url.searchParams.set('origin', location.origin);
+      url.searchParams.set('channel', this.channel);
       this.connection = new Promise((resolve, reject) => {
-        let url;
-        try {
-          url = new URL(config.endpoint);
-          if (url.origin !== 'https://script.google.com' || !/^\/macros\/s\/[\w-]+\/exec$/.test(url.pathname)) throw new Error();
-        } catch { reject(error('CONFIG', '발급 서버 주소를 확인해 주세요.')); return; }
-        if (!/^https?:/.test(location.protocol)) { reject(error('CONFIG', '웹 주소에서 페이지를 열어 주세요.')); return; }
-        url.searchParams.set('origin', location.origin);
-        url.searchParams.set('channel', this.channel);
         this.resolveReady = resolve;
+        this.rejectReady = reject;
         this.connectTimer = setTimeout(() => {
-          this.connection = null;
-          this.iframe?.remove();
-          this.iframe = null;
-          this.resolveReady = null;
-          reject(error('CONNECT', '발급 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'));
-        }, 25000);
-        this.iframe = document.createElement('iframe');
-        this.iframe.title = '티켓 발급 서버 연결';
-        this.iframe.hidden = true;
-        this.iframe.referrerPolicy = 'no-referrer';
-        this.iframe.src = url.href;
-        document.body.append(this.iframe);
+          this.disconnect(generation, error('CONNECT', '등록 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'));
+        }, 15000);
+        const frame = document.createElement('iframe');
+        this.iframe = frame;
+        frame.title = '티켓 발급 서버 연결';
+        frame.setAttribute('aria-hidden', 'true');
+        frame.tabIndex = -1;
+        // Keep the bridge rendered without adding a visible or focusable element.
+        frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none';
+        frame.referrerPolicy = 'no-referrer';
+        frame.src = url.href;
+        frame.addEventListener('error', () => {
+          this.disconnect(generation, error('CONNECT', '등록 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'));
+        });
+        document.body.append(frame);
       });
       return this.connection;
     }
@@ -61,9 +92,10 @@
         this.remote = event.source;
         this.remoteOrigin = event.origin;
         clearTimeout(this.connectTimer);
-        this.resolveReady();
-        this.resolveReady = null;
+        const resolve = this.resolveReady;
+        this.resolveReady = this.rejectReady = null;
         this.remote.postMessage({ type: 'jukebox-connect', channel: this.channel }, this.remoteOrigin);
+        resolve();
         return;
       }
       if (event.source !== this.remote || event.origin !== this.remoteOrigin) return;
@@ -74,21 +106,36 @@
       if (data.result?.ok === true) pending.resolve(data.result.data);
       else pending.reject(error(data.result?.code || 'SERVER', data.result?.message || '요청을 처리하지 못했어요. 다시 시도해 주세요.'));
     }
+    async send(action, payload) {
+      await this.connect();
+      const requestId = uuid();
+      const generation = this.generation;
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          this.disconnect(generation, error('TIMEOUT', '서버 응답을 확인하지 못했어요.'));
+        }, ['public', 'restore'].includes(action) ? 20000 : 40000);
+        this.pending.set(requestId, { resolve, reject, timer, action });
+        try {
+          this.remote.postMessage({ type: 'jukebox-request', channel: this.channel, requestId, action, payload }, this.remoteOrigin);
+        } catch {
+          this.disconnect(generation, error('CONNECT', '등록 서버에 연결하지 못했어요.'));
+        }
+      });
+    }
     async request(action, payload = {}) {
       if (this.preview) {
         if (action === 'public') return { issued: null, capacity: config.capacity, tracks: [] };
         throw error('PREVIEW', '미리보기에서는 실제 발급을 하지 않습니다.');
       }
-      await this.connect();
-      const requestId = uuid();
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          this.pending.delete(requestId);
-          reject(error('TIMEOUT', '처리 결과를 확인하지 못했어요. 같은 정보로 다시 누르면 중복 발급 없이 결과를 확인합니다.'));
-        }, 40000);
-        this.pending.set(requestId, { resolve, reject, timer });
-        this.remote.postMessage({ type: 'jukebox-request', channel: this.channel, requestId, action, payload }, this.remoteOrigin);
-      });
+      const attempts = ['public', 'restore'].includes(action) ? 2 : 1;
+      for (let attempt = 0; attempt < attempts; attempt++) {
+        try { return await this.send(action, payload); }
+        catch (e) {
+          if (attempt + 1 >= attempts || !['CONNECT', 'TIMEOUT', 'NETWORK'].includes(e.code)) throw e;
+          // Timeouts already discard the old frame. A server-side network error
+          // may leave a healthy frame, so retry it without interrupting writes.
+        }
+      }
     }
   }
   window.Jukebox = { TicketAPI, youtubeUrl, uuid };

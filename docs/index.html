@@ -8,11 +8,11 @@
   <meta name="referrer" content="no-referrer">
   <title>JUKEBOX — A night to keep</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=20261021-portrait">
-  <link rel="stylesheet" href="./portrait.css?v=20261021-portrait">
-  <script defer src="./config.js?v=20261021-portrait"></script>
-  <script defer src="./api.js?v=20261021-portrait"></script>
-  <script defer src="./app.js?v=20261021-portrait"></script>
+  <link rel="stylesheet" href="./styles.css?v=20261022-reconnect">
+  <link rel="stylesheet" href="./portrait.css?v=20261022-reconnect">
+  <script defer src="./config.js?v=20261022-reconnect"></script>
+  <script defer src="./api.js?v=20261022-reconnect"></script>
+  <script defer src="./app.js?v=20261022-reconnect"></script>
 </head>
 <body>
   <div class="atmosphere" aria-hidden="true"><div class="orb orb-pink"></div><div class="orb orb-blue"></div><div class="floor-grid"></div></div>
@@ -76,7 +76,7 @@
       <div class="registration-copy"><p class="eyebrow">MAKE IT YOURS</p><h2 id="registrationTitle">이 티켓의 주인은?</h2><p>이름과 연락처 뒤 4자리를 입력하고<br>나의 티켓 받기를 눌러 등록을 완료하세요.</p><div class="capacity"><span class="status-dot"></span><span id="capacityText">총 1,000장의 고유 번호 티켓</span></div></div>
       <form id="ticketForm" novalidate>
         <div class="form-row"><div class="field"><label for="name">이름 <span>필수</span></label><input id="name" name="name" type="text" maxlength="40" autocomplete="name" placeholder="티켓에 새길 이름" required><small class="field-error" id="nameError"></small></div><div class="field"><label for="phoneLast4">연락처 뒷번호 <span>필수</span></label><input id="phoneLast4" name="phoneLast4" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="휴대전화 뒤 4자리" required><small class="field-error" id="phoneError"></small></div></div>
-        <div class="field message-field"><label for="message">하고 싶은 말 <span>선택</span><small id="charCount">0 / 100</small></label><textarea id="message" name="message" rows="2" placeholder="밴드에게 응원 한마디, 오늘의 기대 한 조각." aria-describedby="charCount"></textarea><small class="field-error" id="messageError"></small></div>
+        <div class="field message-field"><label for="message">하고 싶은 말 <span>선택</span><small id="charCount">0 / 100</small></label><textarea id="message" name="message" rows="2" placeholder="남기고 싶은 말을 자유롭게 남겨주세요" aria-describedby="charCount"></textarea><small class="field-error" id="messageError"></small></div>
         <label class="consent"><input id="consent" type="checkbox" required><span>공연 등록 확인을 위해 이름·연락처 뒤 4자리·메시지를 주최 측에 제출하는 데 동의합니다.</span></label>
         <div class="form-status" id="formStatus" aria-live="polite"></div>
         <button class="primary-button" id="issueButton" type="submit"><span id="issueLabel">나의 티켓 받기</span><span class="button-arrow" aria-hidden="true">↗</span></button>
@@ -85,7 +85,7 @@
     </section>
     <section class="issued-section" id="issuedSection" hidden aria-live="polite"><div><p class="eyebrow" id="issuedEyebrow">IT'S YOURS</p><h2 id="issuedTitle">당신의 티켓이 준비됐어요.</h2><p id="issuedDetail"></p></div><div class="issued-actions"><button class="primary-button" id="downloadButton">티켓 이미지 저장 <span>↓</span></button><button class="secondary-button" id="showSetlistButton">셋리스트 보기 <span>↗</span></button></div></section>
     <div id="restoreArea" class="restore-area" hidden><button type="button" id="restoreButton" class="text-button">내 티켓 다시 확인 ↻</button><p id="restoreStatus" class="form-status" role="status" aria-live="polite"></p></div>
-    <section class="event-strip" aria-label="공연 정보"><div><small>WHEN</small><p>11.21 <span>SAT / 18:00</span></p></div><div><small>WHERE</small><p>논현 재즈클럽 그루브</p></div><div><small>ADMISSION</small><p>5,000원 <span>자유석</span></p></div><div class="event-message">잠깐의 공연이,<br>오래 남을 기억으로.</div></section>
+    <section class="event-strip" aria-label="공연 정보"><div><small>WHEN</small><p>11.21 <span>SAT / 18:00</span></p></div><div><small>WHERE</small><p>논현 재즈클럽 그루브</p></div><div><small>ADMISSION</small><p>5,000원 <span>자유석</span></p></div></section>
   </main>
   <footer><span>JUKEBOX <b>© 2026</b></span><span>MADE FOR THE MOMENT.</span></footer>
   <button id="managerButton" class="manager-button" type="button" hidden>매니저 확인</button>
