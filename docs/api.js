@@ -1,5 +1,5 @@
-/* Google Apps Script bridge with bounded retries for read-only requests.
-   Issuance/check-in are never automatically replayed. */
+/* Google Apps Script bridge. A slow request must never cancel another request.
+   Uncertain issuance is recovered with a read; writes are never replayed. */
 (function () {
   'use strict';
   const config = window.TICKET_CONFIG;
@@ -27,6 +27,7 @@
       this.connection = null;
       this.remote = null;
       this.remoteOrigin = null;
+      this.needsReconnect = false;
       this.listener = event => this.onMessage(event);
       window.addEventListener('message', this.listener);
     }
@@ -57,6 +58,7 @@
       } catch { return Promise.reject(error('CONFIG', '발급 서버 주소를 확인해 주세요.')); }
       if (!/^https?:/.test(location.protocol)) return Promise.reject(error('CONFIG', '웹 주소에서 페이지를 열어 주세요.'));
       const generation = ++this.generation;
+      this.needsReconnect = false;
       this.channel = uuid();
       url.searchParams.set('origin', location.origin);
       url.searchParams.set('channel', this.channel);
@@ -105,6 +107,13 @@
       this.pending.delete(data.requestId);
       if (data.result?.ok === true) pending.resolve(data.result.data);
       else pending.reject(error(data.result?.code || 'SERVER', data.result?.message || '요청을 처리하지 못했어요. 다시 시도해 주세요.'));
+      this.resetWhenIdle();
+    }
+    resetWhenIdle() {
+      // Leave the Google frame alive until every other in-flight request settles.
+      if (this.needsReconnect && this.pending.size === 0) {
+        this.disconnect(this.generation, error('TIMEOUT', '서버 연결을 새로 확인합니다.'));
+      }
     }
     async send(action, payload) {
       await this.connect();
@@ -112,7 +121,14 @@
       const generation = this.generation;
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
-          this.disconnect(generation, error('TIMEOUT', '서버 응답을 확인하지 못했어요.'));
+          const pending = this.pending.get(requestId);
+          if (!pending || generation !== this.generation) return;
+          this.pending.delete(requestId);
+          this.needsReconnect = true;
+          pending.reject(error('TIMEOUT', action === 'issue'
+            ? '발급 결과를 확인하지 못했어요. 같은 브라우저에서 다시 확인해 주세요.'
+            : '서버 응답이 늦어졌어요. 잠시 후 다시 확인해 주세요.'));
+          this.resetWhenIdle();
         }, ['public', 'restore'].includes(action) ? 20000 : 40000);
         this.pending.set(requestId, { resolve, reject, timer, action });
         try {
@@ -121,6 +137,21 @@
           this.disconnect(generation, error('CONNECT', '등록 서버에 연결하지 못했어요.'));
         }
       });
+    }
+    async issue(payload, onRecovery = () => {}) {
+      try { return await this.request('issue', payload); }
+      catch (issueError) {
+        if (!['CONNECT', 'TIMEOUT', 'NETWORK'].includes(issueError.code)) throw issueError;
+        onRecovery();
+        // The write may already be committed. Look it up by the same stored token.
+        // Never manufacture a successful ticket or create a second issuance here.
+        try {
+          const ticket = await this.request('restore', { token: payload.token });
+          if (ticket) return ticket;
+        } catch {}
+        throw error(issueError.code,
+          '발급 여부를 확인하지 못했어요. 잠시 후 이 브라우저에서 ‘내 티켓 다시 확인’을 눌러 주세요.');
+      }
     }
     async request(action, payload = {}) {
       if (this.preview) {
@@ -132,8 +163,8 @@
         try { return await this.send(action, payload); }
         catch (e) {
           if (attempt + 1 >= attempts || !['CONNECT', 'TIMEOUT', 'NETWORK'].includes(e.code)) throw e;
-          // Timeouts already discard the old frame. A server-side network error
-          // may leave a healthy frame, so retry it without interrupting writes.
+          // Replace an idle failed frame; otherwise share the live frame until
+          // outstanding requests finish. Never interrupt a write to retry a read.
         }
       }
     }

@@ -6,8 +6,12 @@
 - The production setlist was re-read on 2026-10-22 (Asia/Seoul). It contains four songs with artist names.
 - The portrait front, participant back and exported portrait PNG were inspected. The back-side content now fits above the perforation.
 - Requested copy changes: setlist disclaimer, ticket-owner heading, issue-button instruction, message placeholder, and removal of the closing slogan.
-- Client bridge regression tests: 5/5 passed (dropped request recovery, bounded handshake failure, no automatic issuance replay, simultaneous read recovery, and origin/source validation).
-- A server timeout now invalidates the old connection. Only public/restore reads retry automatically, once.
+- Client bridge regression tests: 8/8 passed, including a timed-out read while issuance/check is still running, read-only recovery after an uncertain issuance result, and missing-record failures.
+- A request timeout now fails only that request. An old connection is replaced only after its remaining requests finish; a slow setlist/restore cannot cancel issuance or manager confirmation.
+- An uncertain issuance response triggers a restore lookup using the same stored token. The issuance is never automatically replayed; a missing record remains a failure.
+- Background and manual ticket checks now share one lookup and the same button state instead of leaving an enabled button that silently ignores clicks.
+- Before this patch, a manual production restore of the existing synthetic ticket succeeded, but the user-reported browser failure was not reproduced directly. This patch addresses independently reproduced concurrency defects, not a verified diagnosis of every browser environment.
+- No additional production ticket was issued during this investigation. Deployment verification of the current patch is pending.
 - Public song data is shown immediately from the latest bundled or browser-cached copy; successful sheet responses replace it. Names, contact suffixes and registration messages are not included in this public cache.
 - The blocked-origin local browser test showed all four songs after CONNECT failure, with the last-confirmed time, a latest-query-delay notice and an enabled refresh button.
 - Frontend JavaScript syntax checks passed.

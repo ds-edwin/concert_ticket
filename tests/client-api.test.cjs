@@ -81,7 +81,7 @@ test('simultaneous reads recover through one shared replacement connection',asyn
   const h=harness(), a=h.api.request('public'),b=h.api.request('restore',{token:'same-token'});
   h.ready();await flush();
   assert.equal(h.requests().length,2);
-  h.fire(20000);await flush();
+  h.fire(20000);h.fire(20000);await flush();
   assert.equal(h.frames.length,2);
   h.ready();await flush();
   const retries=h.requests().slice(2);
@@ -101,4 +101,49 @@ test('untrusted origins and mismatched frame sources cannot resolve a request',a
   assert.equal(h.api.pending.size,1);
   h.reply(request,{ok:'trusted'});
   assert.equal((await result).ok,'trusted');
+});
+
+test('a timed-out read cannot cancel issuance or manager confirmation',async()=>{
+  for(const action of ['issue','check']) {
+    const h=harness();
+    const write=h.api.request(action,{token:'retained-token'}), read=h.api.request('public');
+    h.ready();await flush();
+    const originalWrite=h.requests().find(p=>p.message.action===action);
+    h.fire(20000);await flush();
+    assert.equal(h.frames.length,1);
+    assert.equal(h.frames[0].removed,undefined);
+    assert.ok(h.api.pending.has(originalWrite.message.requestId));
+    h.reply(originalWrite,{serial:7,name:'테스트'});
+    assert.equal((await write).serial,7);
+    const retry=h.requests().filter(p=>p.message.action==='public').at(-1);
+    h.reply(retry,{tracks:[]});
+    assert.equal((await read).tracks.length,0);
+    assert.equal(h.api.pending.size,0);
+    assert.equal(h.api.connection,null);
+  }
+});
+
+test('a lost issuance response is recovered by a lookup with the same token',async()=>{
+  const h=harness();let recovery=0;
+  const result=h.api.issue({token:'retained-token',name:'테스트'},()=>recovery++);
+  h.ready();await flush();h.fire(40000);await flush();
+  assert.equal(recovery,1);
+  assert.equal(h.frames.length,2);
+  h.ready();await flush();
+  const lookup=h.requests().at(-1);
+  assert.equal(lookup.message.action,'restore');
+  assert.equal(lookup.message.payload.token,'retained-token');
+  h.reply(lookup,{serial:8,name:'테스트',checked:false});
+  assert.equal((await result).serial,8);
+  assert.equal(h.requests().filter(p=>p.message.action==='issue').length,1);
+});
+
+test('missing recovery records remain a failure and never fabricate a ticket',async()=>{
+  const h=harness(), result=h.api.issue({token:'retained-token'}).catch(e=>e);
+  h.ready();await flush();h.fire(40000);await flush();h.ready();await flush();
+  h.reply(h.requests().at(-1),null);
+  const failure=await result;
+  assert.equal(failure.code,'TIMEOUT');
+  assert.match(failure.message,/내 티켓 다시 확인/);
+  assert.equal(h.requests().filter(p=>p.message.action==='issue').length,1);
 });

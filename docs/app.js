@@ -6,6 +6,7 @@
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const storageKey = `jukebox:${config.eventId}:${api.preview ? 'preview' : config.endpoint}`;
   let issuedTicket = null, busy = false, soldOut = false, restoring = false, toastTimer;
+  let restoreRequest = null, restoreInteractive = false;
   function readState() { try { return JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch { return null; } }
   function saveState(value) { try { localStorage.setItem(storageKey, JSON.stringify(value)); return true; } catch { return false; } }
   let local = readState() || {};
@@ -70,37 +71,50 @@
     if (!persistent && !api.preview) { $('formStatus').textContent = '이 브라우저의 저장 공간을 사용할 수 없어요. 중복 발급 방지를 위해 일반 브라우저에서 저장 기능을 허용한 뒤 다시 열어 주세요.'; return; }
     busy=true; $('issueButton').disabled=true; $('issueLabel').textContent = api.preview ? '샘플 준비 중…' : '당신의 번호를 새기는 중…';
     try {
-      const ticket = api.preview ? { name: payload.name, preview:true } : await api.request('issue', payload);
+      const ticket = api.preview ? { name: payload.name, preview:true } : await api.issue(payload, () => {
+        $('issueLabel').textContent = '발급 기록 확인 중…';
+        $('formStatus').textContent = '응답이 늦어 기존 발급 기록을 확인하고 있어요. 잠시만 기다려 주세요.';
+      });
       showTicket(ticket,true);
+      $('formStatus').textContent = '';
       if (!api.preview) refreshPublic(true);
     } catch (e) {
       $('formStatus').textContent = e.message || '발급 결과를 확인하지 못했어요. 다시 시도해 주세요.';
       if (e.code === 'SOLD_OUT') { soldOut = true; $('capacityText').textContent = '1,000장 발급이 모두 마감되었습니다.'; }
     } finally { busy=false; $('issueButton').disabled=soldOut; $('issueLabel').textContent = soldOut ? '발급 마감' : api.preview ? '샘플 티켓 보기' : '나의 티켓 받기'; }
   });
-  async function restoreTicket(silent = false) {
-    if (api.preview || restoring) return;
-    if (busy) { if (!silent) $('restoreStatus').textContent = '티켓 발급을 처리하고 있어요. 완료 후 다시 확인해 주세요.'; return; }
+  function restoreTicket(silent = false) {
+    if (api.preview) return Promise.resolve();
+    if (busy || checking) {
+      if (!silent) $('restoreStatus').textContent = '티켓을 처리하고 있어요. 완료 후 다시 확인해 주세요.';
+      return Promise.resolve();
+    }
+    if (!silent) {
+      restoreInteractive = true;
+      $('restoreStatus').textContent = '이 브라우저에서 발급한 티켓을 확인하고 있어요.';
+    }
+    // Manual confirmation joins an existing background lookup instead of silently returning.
+    if (restoreRequest) return restoreRequest;
     restoring = true;
     $('restoreButton').disabled = true;
     $('restoreButton').textContent = '내 티켓 확인 중…';
-    if (!silent) $('restoreStatus').textContent = '이 브라우저에서 발급한 티켓을 확인하고 있어요.';
-    try {
-      const ticket = await api.request('restore', { token: local.token });
+    restoreRequest = api.request('restore', { token: local.token }).then(ticket => {
       if (ticket) {
         showTicket(ticket);
-        if (!silent) $('restoreStatus').textContent = `기존 티켓 No. ${String(ticket.serial).padStart(4,'0')}을 불러왔어요.`;
-      } else if (!silent) {
+        if (restoreInteractive) $('restoreStatus').textContent = `기존 티켓 No. ${String(ticket.serial).padStart(4,'0')}을 불러왔어요.`;
+      } else if (restoreInteractive) {
         $('restoreStatus').textContent = '현재 서버에서 이 브라우저의 발급 기록을 찾지 못했어요. 발급했던 브라우저에서 다시 확인해 주세요.';
       }
-    } catch (e) {
-      if (!silent) $('restoreStatus').textContent = e.message || '기존 티켓을 확인하지 못했어요. 잠시 후 다시 눌러 주세요.';
-      else if (local.ticket) toast('저장된 티켓을 표시합니다. 서버 확인은 잠시 후 다시 시도해 주세요.');
-    } finally {
+    }).catch(e => {
+      if (restoreInteractive) $('restoreStatus').textContent = e.message || '기존 티켓을 확인하지 못했어요. 잠시 후 다시 눌러 주세요.';
+    }).finally(() => {
       restoring = false;
+      restoreRequest = null;
+      restoreInteractive = false;
       $('restoreButton').disabled = false;
       $('restoreButton').textContent = '내 티켓 다시 확인 ↻';
-    }
+    });
+    return restoreRequest;
   }
   $('restoreButton').addEventListener('click', () => restoreTicket());
   const publicCacheKey = storageKey + ':setlist';
@@ -213,7 +227,7 @@
     catch(e){toast(e.message||'확인 기록에 실패했습니다. 다시 눌러 주세요.');}
     finally{checking=false;$('managerButton').disabled=issuedTicket.checked===true;}
   });
-  async function syncCheck(){if(api.preview||!issuedTicket||checking||restoring||busy||document.hidden)return;restoring=true;try{const result=await api.request('restore',{token:local.token});if(result)showTicket(result);}catch{}finally{restoring=false;}}
+  function syncCheck(){if(api.preview||!issuedTicket||checking||restoring||busy||document.hidden)return;return restoreTicket(true);}
   function syncVisible() {
     if (document.hidden) return;
     syncCheck();
