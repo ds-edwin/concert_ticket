@@ -225,6 +225,7 @@
     cutLine.tabIndex = value ? 0 : -1;
     $('cutStatus').textContent = value ? '점선 어디서든 좌우로 약 40%만 그어주세요.' : '';
     if(value) {
+      cancelTouchRotation();
       if(drag?.captureTarget.hasPointerCapture(drag.id)) drag.captureTarget.releasePointerCapture(drag.id);
       drag = null;
       card.classList.remove('dragging');
@@ -330,44 +331,104 @@
   }
   function animate(){if(!frame){lastFrame=performance.now();frame=requestAnimationFrame(tick);}}
   function reset(){rotation.x.target=0;rotation.y.target=Math.round(rotation.y.current/360)*360;rotation.z.target=0;animate();}
-  rotationSurface.addEventListener('pointerdown',event=>{
-    if(cutArmed || checking || event.button!==0 || !event.isPrimary || drag)return;
-    if(event.target.closest('button,a,input,textarea,select,.cut-line'))return;
+  const rotationControls = 'button,a,input,textarea,select,.cut-line';
+  let touchRotation = null;
+  function startRotation(point, target, touch = false) {
+    if(cutArmed || checking || drag || target.closest(rotationControls))return false;
     const rect=$('perspective').getBoundingClientRect();
-    tapOnCard=card.contains(event.target);
-    // Start from the visible angle, not an unfinished inertia target.
+    tapOnCard=card.contains(target);
     for(const axis of Object.values(rotation)){axis.target=axis.current;axis.velocity=0;}
-    drag={id:event.pointerId,x:event.clientX,y:event.clientY,rx:rotation.x.target,ry:rotation.y.target,lastX:event.clientX,lastTime:performance.now(),velocity:0,width:rect.width,touch:event.pointerType==='touch',captureTarget:rotationSurface,freeScroll:!event.target.closest('.perspective')};dragged=false;drag.captureTarget.setPointerCapture(event.pointerId);card.classList.add('dragging');
-  });
-  rotationSurface.addEventListener('pointermove',event=>{
-    if(cutArmed || checking)return;
-    const rect=$('perspective').getBoundingClientRect();const px=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width));const py=Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height));
-    card.style.setProperty('--mx',`${px*100}%`);card.style.setProperty('--my',`${py*100}%`);card.style.setProperty('--foil-opacity',drag?'.15':'.09');
-    if(!drag||event.pointerId!==drag.id)return;
-    const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
-    if(drag.touch && drag.freeScroll && !dragged && Math.abs(dy)>Math.abs(dx))return;
+    drag={id:point.pointerId,x:point.clientX,y:point.clientY,rx:rotation.x.target,ry:rotation.y.target,lastX:point.clientX,lastTime:performance.now(),velocity:0,width:rect.width,touch,captureTarget:rotationSurface};
+    dragged=false;
+    if(!touch)rotationSurface.setPointerCapture(point.pointerId);
+    card.classList.add('dragging');
+    return true;
+  }
+  function moveRotation(point) {
+    if(!drag || point.pointerId!==drag.id || cutArmed || checking)return;
+    const dx=point.clientX-drag.x,dy=point.clientY-drag.y;
     if(!dragged && Math.hypot(dx,dy)<=6)return;
     dragged=true;
-    if(event.cancelable)event.preventDefault();
-    const now=performance.now();drag.velocity=(event.clientX-drag.lastX)/Math.max(1,now-drag.lastTime);drag.lastX=event.clientX;drag.lastTime=now;
+    const now=performance.now();drag.velocity=(point.clientX-drag.lastX)/Math.max(1,now-drag.lastTime);drag.lastX=point.clientX;drag.lastTime=now;
     rotation.y.target=drag.ry+dx/drag.width*360;rotation.x.target=drag.touch?0:Math.max(-48,Math.min(48,drag.rx-dy*.22));rotation.z.target=Math.max(-5,Math.min(5,dx*.008));animate();
-  });
+  }
   function release(event,cancelled=false){
     if(!drag||event.pointerId!==drag.id)return;
     const active=drag;
-    drag=null; // Clear before releasing capture: lostpointercapture may fire immediately.
+    drag=null;
     const velocity=performance.now()-active.lastTime<90?active.velocity:0;
     if(dragged&&!cancelled){
       rotation.y.target+=Math.max(-100,Math.min(100,velocity*55));
       rotation.x.target*=.35;rotation.z.target*=.25;animate();
     }
-    if(active.captureTarget.hasPointerCapture(event.pointerId))active.captureTarget.releasePointerCapture(event.pointerId);
+    if(!active.touch && active.captureTarget.hasPointerCapture(event.pointerId))active.captureTarget.releasePointerCapture(event.pointerId);
     card.classList.remove('dragging');
     if(cancelled){dragged=true;tapOnCard=false;}
   }
-  rotationSurface.addEventListener('pointerup',e=>release(e));
-  rotationSurface.addEventListener('pointercancel',e=>release(e,true));
-  rotationSurface.addEventListener('lostpointercapture',e=>release(e,true));
+  rotationSurface.addEventListener('pointerdown',event=>{
+    // Touch has its own direction/hold arbitration; pointercancel must not end it.
+    if(event.pointerType==='touch' || event.button!==0 || !event.isPrimary)return;
+    startRotation(event,event.target);
+  });
+  rotationSurface.addEventListener('pointermove',event=>{
+    if(event.pointerType==='touch' || cutArmed || checking)return;
+    const rect=$('perspective').getBoundingClientRect();const px=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width));const py=Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height));
+    card.style.setProperty('--mx',`${px*100}%`);card.style.setProperty('--my',`${py*100}%`);card.style.setProperty('--foil-opacity',drag?'.15':'.09');
+    if(drag && event.cancelable)event.preventDefault();
+    moveRotation(event);
+  });
+  for(const type of ['pointerup','pointercancel','lostpointercapture'])rotationSurface.addEventListener(type,e=>{
+    if(e.pointerType!=='touch')release(e,type!=='pointerup');
+  });
+  function touchPoint(t){return {pointerId:t.identifier,clientX:t.clientX,clientY:t.clientY};}
+  function cancelTouchRotation(){
+    if(!touchRotation)return;
+    clearTimeout(touchRotation.timer);
+    release({pointerId:touchRotation.id},true);
+    touchRotation=null;tapOnCard=false;
+  }
+  function lockTouchRotation(g){
+    clearTimeout(g.timer);
+    if(startRotation({pointerId:g.id,clientX:g.x,clientY:g.y},g.target,true))g.mode='rotate';
+    else g.mode='scroll';
+  }
+  rotationSurface.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1){cancelTouchRotation();return;}
+    if(cutArmed || checking || drag || e.target.closest(rotationControls))return;
+    const t=e.touches[0];
+    const g=touchRotation={id:t.identifier,x:t.clientX,y:t.clientY,target:e.target,mode:'pending',timer:0};
+    dragged=false;tapOnCard=card.contains(e.target);
+    // A quick vertical swipe scrolls. Holding still for 240ms chooses rotation.
+    g.timer=setTimeout(()=>{if(touchRotation===g && g.mode==='pending')lockTouchRotation(g);},240);
+  },{passive:true});
+  rotationSurface.addEventListener('touchmove',e=>{
+    const g=touchRotation;if(!g)return;
+    if(e.touches.length!==1 || cutArmed || checking){cancelTouchRotation();return;}
+    const t=Array.from(e.touches).find(t=>t.identifier===g.id);if(!t)return;
+    if(g.mode==='scroll')return;
+    // If the browser already owns a scroll, never try to pull it back.
+    if(!e.cancelable){cancelTouchRotation();return;}
+    const dx=Math.abs(t.clientX-g.x),dy=Math.abs(t.clientY-g.y);
+    if(g.mode==='pending'){
+      if(Math.max(dx,dy)<6)return;
+      if(dx>dy*1.15)lockTouchRotation(g);
+      else {clearTimeout(g.timer);g.mode='scroll';tapOnCard=false;dragged=true;return;}
+    }
+    if(g.mode==='rotate'){
+      e.preventDefault(); // Only the chosen rotation gesture blocks native scrolling.
+      moveRotation(touchPoint(t));
+    }
+  },{passive:false});
+  rotationSurface.addEventListener('touchend',e=>{
+    const g=touchRotation;if(!g || !Array.from(e.changedTouches).some(t=>t.identifier===g.id))return;
+    clearTimeout(g.timer);
+    const consumed=g.mode==='rotate' && dragged;
+    release({pointerId:g.id});
+    touchRotation=null;
+    if(consumed && e.cancelable)e.preventDefault();
+  },{passive:false});
+  rotationSurface.addEventListener('touchcancel',cancelTouchRotation,{passive:true});
+  window.addEventListener('blur',()=>{cancelTouchRotation();if(drag)release({pointerId:drag.id},true);});
   rotationSurface.addEventListener('click',e=>{
     if(e.target.closest('button,a,input,textarea,select,.cut-line'))return;
     if(!dragged && !cutArmed && !checking && (tapOnCard||card.contains(e.target)))openPanel();
