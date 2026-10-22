@@ -81,8 +81,8 @@ main{max-width:1120px}
 .primary-button #issueLabel{font-size:14px}
 .form-footnote{font-size:10px;text-align:left}
 .form-status{font-size:12px}
-.issued-section,.restore-area,.event-strip{max-width:880px}
-.event-strip{grid-template-columns:1fr 1.4fr 1fr}
+.issued-section,.restore-area{max-width:880px}
+
 .issued-section{margin-top:34px}
 .manager-button{min-height:44px;font-size:12px;bottom:calc(14px + env(safe-area-inset-bottom))}
 .toast{bottom:calc(74px + env(safe-area-inset-bottom))}
@@ -125,7 +125,7 @@ footer{padding-bottom:calc(80px + env(safe-area-inset-bottom))}
   .issued-actions{flex-wrap:wrap}
   .issued-actions button{font-size:12px;min-height:48px}
   .manager-button{right:12px}
-  .event-strip{grid-template-columns:1fr 1.3fr}
+  
 }
 @media(max-width:350px){
   main{padding:0 14px}

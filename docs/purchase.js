@@ -6,7 +6,7 @@ const tokenPattern=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f
 const baseKey=`jukebox:${config.eventId}:${config.endpoint || 'preview'}`;
 const orderKey=baseKey+':purchase-v1';
 function ticketStorageKey(token){return baseKey+':ticket:'+token;}
-function ticketUrl(token){const u=new URL('./ticket.html',location.href);u.hash='ticket='+encodeURIComponent(token);return u.href;}
+function ticketUrl(token){const u=new URL('./ticket.html',location.href);u.searchParams.set('v','20261022-share');u.hash='ticket='+encodeURIComponent(token);return u.href;}
 function parsePayer(value){
  const normalized=String(value||'').normalize('NFKC').trim();
  const match=normalized.match(/^(.+?)\s*([0-9]{4})$/u);

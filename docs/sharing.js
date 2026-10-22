@@ -2,15 +2,18 @@
 'use strict';
 const $=id=>document.getElementById(id),P=window.JukeboxPurchase;
 let current=null;
+// Remove the retired information strip if an older HTML document is cached.
+document.querySelectorAll('.event-strip').forEach(el=>el.remove());
 const urlToken=new URLSearchParams(location.hash.slice(1)).get('ticket');
 function render(detail){
  current=detail||null;
- $('ticketSharing').hidden=!current;
+ $('ticketSharing').hidden=true;
  if(!current)return;
  $('ticketLinkStatus').hidden=true;
  const order=P.findOrder(current.token),isOwner=order?.tokens.includes(current.token);
  $('ticketChoices').replaceChildren();
  if(isOwner&&order.quantity>1){
+  $('ticketSharing').hidden=false;
   $('shareDescription').textContent='티켓 '+order.quantity+'장의 링크를 한 분씩 보내주세요. 받는 분이 직접 이름을 등록합니다.';
   order.tokens.forEach((token,i)=>{
    
@@ -20,7 +23,7 @@ function render(detail){
    if(token===current.token){a.className='selected';a.setAttribute('aria-current','page');}
    $('ticketChoices').append(a);
   });
- }else $('shareDescription').textContent='이 링크는 현재 티켓 1장의 링크예요. 한 분에게 보내주세요.';
+ }
 
 }
 $('copyTicketLink').addEventListener('click',async()=>{
