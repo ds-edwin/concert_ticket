@@ -13,10 +13,10 @@
   <script defer src="./config.js?v=20261022-kiosk"></script>
   <script defer src="./api.js?v=20261022-direct"></script>
   <script defer src="./app.js?v=20261022-guestbook-sheet"></script>
-  <link rel="stylesheet" href="./sharing.css?v=20261022-clean">
+  <link rel="stylesheet" href="./sharing.css?v=20261022-compact">
   <script defer src="./purchase.js?v=20261022-kiosk"></script>
   <script defer src="./sharing.js?v=20261022-clean"></script>
-  <script defer src="./guestbook.js?v=20261022-guestbook-sheet"></script>
+  <script defer src="./guestbook.js?v=20261022-compact"></script>
 </head>
 <body>
   <div class="atmosphere" aria-hidden="true"><div class="orb orb-pink"></div><div class="orb orb-blue"></div><div class="floor-grid"></div></div>
@@ -94,8 +94,14 @@
     <div class="ticket-link-status" id="ticketLinkStatus" role="status" hidden>티켓을 확인하고 있어요.</div>
     <p class="ticket-home"><a href="./">← 티켓 구입 화면</a></p>
     <div id="restoreArea" class="restore-area" hidden><button type="button" id="restoreButton" class="text-button">내 티켓 다시 확인 ↻</button><p id="restoreStatus" class="form-status" role="status" aria-live="polite"></p></div>
-    <section class="guestbook" aria-labelledby="guestbookTitle"><h2 id="guestbookTitle">남기고 싶은 말</h2><form id="guestbookForm" novalidate>        <div class="field message-field"><div class="message-meta"><small id="charCount">0 / 100</small></div><textarea id="message" name="message" rows="2" placeholder="남기고 싶은 말을 자유롭게 남겨주세요" aria-labelledby="guestbookTitle" aria-describedby="charCount messagePublicNote"></textarea><small id="messagePublicNote" class="message-public-note">이름·연락처 등 개인정보는 적지 말아주세요.</small><small class="field-error" id="messageError"></small></div>
-<label class="consent"><input id="guestbookConsent" type="checkbox"><span>메세지를 공개하는 데 동의합니다. 이름은 공개되지 않습니다</span></label><p id="guestbookFormStatus" role="status">티켓을 발급받으면 글을 남길 수 있어요.</p><button id="sendGuestbook" type="submit" disabled>방명록 남기기</button></form><ul id="guestbookList" class="guestbook-list"></ul><p id="guestbookStatus" role="status">방명록을 불러오고 있어요.</p><button id="refreshGuestbook" type="button">새로고침 ↻</button></section>
+    <section class="guestbook" aria-labelledby="guestbookTitle">
+      <div class="guestbook-heading"><h2 id="guestbookTitle">남기고 싶은 말</h2><button id="refreshGuestbook" type="button" aria-label="남기고 싶은 말 새로고침">새로고침 ↻</button></div>
+      <ul id="guestbookList" class="guestbook-list"></ul>
+      <p id="guestbookStatus" role="status">글을 불러오고 있어요.</p>
+      <button id="moreGuestbook" class="guestbook-more" type="button" hidden>더 보기</button>
+      <details id="guestbookCompose" class="guestbook-compose"><summary>글 남기기 <span aria-hidden="true">＋</span></summary><form id="guestbookForm" novalidate>        <div class="field message-field"><div class="message-meta"><small id="charCount">0 / 100</small></div><textarea id="message" name="message" rows="2" placeholder="남기고 싶은 말을 자유롭게 남겨주세요" aria-labelledby="guestbookTitle" aria-describedby="charCount messagePublicNote"></textarea><small id="messagePublicNote" class="message-public-note">이름·연락처 등 개인정보는 적지 말아주세요.</small><small class="field-error" id="messageError"></small></div>
+<label class="consent"><input id="guestbookConsent" type="checkbox"><span>메세지를 공개하는 데 동의합니다. 이름은 공개되지 않습니다</span></label><p id="guestbookFormStatus" role="status">티켓을 발급받으면 글을 남길 수 있어요.</p><button id="sendGuestbook" type="submit" disabled>방명록 남기기</button></form></details>
+    </section>
   </main>
   <div class="manager-area"><button id="managerButton" class="manager-button" type="button" aria-pressed="false" hidden>매니저 확인</button></div>
   <footer><span>JUKEBOX <b>© 2026</b></span><span>MADE FOR THE MOMENT.</span></footer>

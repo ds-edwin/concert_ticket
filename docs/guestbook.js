@@ -1,23 +1,31 @@
 (function(){
 'use strict';
 const $=id=>document.getElementById(id),api=new window.Jukebox.TicketAPI(),P=window.JukeboxPurchase;
-let current=window.Jukebox.currentTicket||null,loading=false,sending=false,pending=null;
+let current=window.Jukebox.currentTicket||null,loading=false,sending=false,pending=null,messages=[],visibleCount=5;
 function pendingKey(){return current?P.ticketStorageKey(current.token)+':pending-message':null;}
 function updateTicket(detail){
  current=detail||null;
  try{pending=current?JSON.parse(sessionStorage.getItem(pendingKey())||'null'):null;}catch{pending=null;}
- if(pending){$('message').value=pending.message;$('guestbookConsent').checked=true;}
+ if(pending){$('guestbookCompose').open=true;$('message').value=pending.message;$('guestbookConsent').checked=true;}
  $('message').readOnly=Boolean(pending);$('sendGuestbook').disabled=!current||sending;
  $('guestbookFormStatus').textContent=pending?'전송 결과를 확인하지 못한 글이 있어요. 다시 눌러 확인해 주세요.':current?'':'티켓을 발급받으면 글을 남길 수 있어요.';
 }
+function renderMessages(){
+ const fragment=document.createDocumentFragment();
+ for(const text of messages.slice(0,visibleCount)){const li=document.createElement('li');li.textContent=text;fragment.append(li);}
+ $('guestbookList').replaceChildren(fragment);
+ $('guestbookStatus').textContent=messages.length?'':'첫 번째 한마디를 남겨주세요.';
+ const remaining=Math.max(0,messages.length-visibleCount);
+ $('moreGuestbook').hidden=remaining===0;$('moreGuestbook').textContent='더 보기 ('+remaining+')';
+}
+$('moreGuestbook').addEventListener('click',()=>{visibleCount+=5;renderMessages();});
 async function refresh(){
  if(loading)return;loading=true;$('refreshGuestbook').disabled=true;
  try{
   const data=api.preview?{messages:[]}:await api.sendHTTP('guestbook',{},20000);
   if(!Array.isArray(data?.messages))throw new Error();
-  const fragment=document.createDocumentFragment();
-  for(const text of data.messages){if(typeof text!=='string')continue;const li=document.createElement('li');li.textContent=text;fragment.append(li);}
-  $('guestbookList').replaceChildren(fragment);$('guestbookStatus').textContent=data.messages.length?'':'첫 번째 한마디를 남겨주세요.';
+  messages=data.messages.filter(text=>typeof text==='string'&&text.trim()).reverse();
+  renderMessages();
  }catch(e){$('guestbookStatus').textContent=e.code==='ACTION'?'방명록 서버 업데이트를 기다리고 있어요.':'방명록을 불러오지 못했어요. 새로고침을 눌러주세요.';}
  finally{loading=false;$('refreshGuestbook').disabled=false;}
 }
