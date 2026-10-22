@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const $=id=>document.getElementById(id),api=new window.Jukebox.TicketAPI(),P=window.JukeboxPurchase;
-let current=window.Jukebox.currentTicket||null,loading=false,sending=false,pending=null,messages=[],visibleCount=5;
+let current=window.Jukebox.currentTicket||null,loading=false,sending=false,pending=null,messages=[],visibleCount=5,refreshRequest=null,refreshQueued=false;
 function pendingKey(){return current?P.ticketStorageKey(current.token)+':pending-message':null;}
 function updateTicket(detail){
  current=detail||null;
@@ -19,15 +19,24 @@ function renderMessages(){
  $('moreGuestbook').hidden=remaining===0;$('moreGuestbook').textContent='더 보기 ('+remaining+')';
 }
 $('moreGuestbook').addEventListener('click',()=>{visibleCount+=5;renderMessages();});
-async function refresh(){
- if(loading)return;loading=true;$('refreshGuestbook').disabled=true;
- try{
-  const data=api.preview?{messages:[]}:await api.sendHTTP('guestbook',{},20000);
-  if(!Array.isArray(data?.messages))throw new Error();
-  messages=data.messages.filter(text=>typeof text==='string'&&text.trim()).reverse();
-  renderMessages();
- }catch(e){$('guestbookStatus').textContent=e.code==='ACTION'?'방명록 서버 업데이트를 기다리고 있어요.':'방명록을 불러오지 못했어요. 새로고침을 눌러주세요.';}
- finally{loading=false;$('refreshGuestbook').disabled=false;}
+function refresh(afterWrite=false){
+ // If an older read is pending, run another read after it completes.
+ if(loading){if(afterWrite)refreshQueued=true;return refreshRequest;}
+ loading=true;$('refreshGuestbook').disabled=true;
+ refreshRequest=(async()=>{
+  try{
+   do{
+    refreshQueued=false;
+    try{
+     const data=api.preview?{messages:[]}:await api.sendHTTP('guestbook',{},20000);
+     if(!Array.isArray(data?.messages))throw new Error();
+     // Do not let a response captured before a successful post replace the feed.
+     if(!refreshQueued){messages=data.messages.filter(text=>typeof text==='string'&&text.trim()).reverse();renderMessages();}
+    }catch(e){$('guestbookStatus').textContent=e.code==='ACTION'?'방명록 서버 업데이트를 기다리고 있어요.':'글 목록을 새로 불러오지 못했어요. 새로고침을 눌러주세요.';}
+   }while(refreshQueued);
+  }finally{loading=false;refreshRequest=null;$('refreshGuestbook').disabled=false;}
+ })();
+ return refreshRequest;
 }
 $('message').addEventListener('input',()=>{$('charCount').textContent=Array.from($('message').value.normalize('NFC').trim()).length+' / 100';});
 $('guestbookForm').addEventListener('submit',async e=>{
@@ -45,13 +54,15 @@ $('guestbookForm').addEventListener('submit',async e=>{
   sessionStorage.removeItem(pendingKey());pending=null;
   $('message').value='';$('charCount').textContent='0 / 100';
   $('guestbookFormStatus').textContent='방명록에 남겼어요. 또 다른 한마디도 남길 수 있어요.';
-  await refresh();
+  // The server has confirmed the write, so show it immediately, then reconcile.
+  messages.unshift(message);renderMessages();
+  await refresh(true);
  }catch(e){
   if(['VALIDATION','NOT_FOUND','ACTION'].includes(e.code)){sessionStorage.removeItem(pendingKey());pending=null;}
   $('guestbookFormStatus').textContent=(e.code==='ACTION'?'방명록 서버 업데이트가 필요합니다.':e.message||'저장 결과를 확인하지 못했어요.')+' 다시 눌러도 같은 글은 중복 저장되지 않습니다.';
  }finally{sending=false;$('sendGuestbook').disabled=!current;$('message').readOnly=Boolean(pending);}
 });
-$('refreshGuestbook').addEventListener('click',refresh);
+$('refreshGuestbook').addEventListener('click',()=>refresh());
 window.addEventListener('jukebox:ticket',e=>updateTicket(e.detail));
 window.addEventListener('jukebox:ticket-missing',()=>updateTicket(null));
 window.addEventListener('jukebox:ticket-unclaimed',()=>updateTicket(null));
