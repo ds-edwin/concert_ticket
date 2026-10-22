@@ -11,7 +11,7 @@ function render(detail){
  const order=P.findOrder(current.token),isOwner=order?.tokens.includes(current.token);
  $('ticketChoices').replaceChildren();
  if(isOwner&&order.quantity>1){
-  $('shareDescription').textContent=(order.complete?'구매한 '+order.quantity+'장 중':'발급된 티켓 중')+' 각 티켓 링크를 한 분씩 보내주세요. 받는 분이 본인 이름과 연락처 뒤 4자리를 입력합니다.';
+  $('shareDescription').textContent='티켓 '+order.quantity+'장의 링크를 한 분씩 보내주세요. 받는 분이 직접 이름을 등록합니다.';
   order.tokens.forEach((token,i)=>{
    
    const a=document.createElement('a');a.href=P.ticketUrl(token);
@@ -21,9 +21,7 @@ function render(detail){
    $('ticketChoices').append(a);
   });
  }else $('shareDescription').textContent='이 링크는 현재 티켓 1장의 링크예요. 한 분에게 보내주세요.';
- const text='JUKEBOX 공연 티켓이 도착했어요. 11월 21일 오후 6시, 논현 재즈클럽 그루브에서 만나요.\n'+P.ticketUrl(current.token);
- const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
- $('smsTicket').href='sms:'+(ios?'&':'?')+'body='+encodeURIComponent(text);
+
 }
 $('copyTicketLink').addEventListener('click',async()=>{
  if(!current)return;try{await P.copy(P.ticketUrl(current.token));$('shareStatus').textContent='현재 티켓의 링크를 복사했어요.';}catch(e){$('shareStatus').textContent=e.message;}
@@ -32,7 +30,7 @@ $('shareTicket').addEventListener('click',async()=>{
  if(!current)return;
  const data={title:'JUKEBOX 공연 티켓',text:'11월 21일 오후 6시, 논현 재즈클럽 그루브에서 만나요.',url:P.ticketUrl(current.token)};
  try{
-  if(navigator.share){await navigator.share(data);$('shareStatus').textContent='공유창을 닫았어요.';}
+  if(navigator.share){await navigator.share(data);$('shareStatus').textContent='';}
   else{await P.copy(data.url);$('shareStatus').textContent='링크를 복사했어요. 카카오톡이나 문자에 붙여넣어 주세요.';}
  }catch(e){if(e.name!=='AbortError')$('shareStatus').textContent='공유창을 열지 못했어요. 링크 복사를 이용해 주세요.';}
 });
