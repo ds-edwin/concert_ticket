@@ -11,3 +11,5 @@
 .guestbook-list li{padding:18px 20px;border:1px solid #75638244;border-radius:14px;background:#20182b;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:#eee4f2}
 .guestbook button{min-height:44px;padding:10px 16px;border-radius:8px;border:1px solid #7ed9c0;background:transparent;color:#a6ebd8;cursor:pointer}
 .message-public-note{display:block;color:#b5cfca;font-size:12px;line-height:1.7;margin:8px 0}
+
+#guestbookForm{margin:24px 0 32px}#guestbookForm textarea{width:100%;box-sizing:border-box}#guestbookFormStatus{min-height:22px}#sendGuestbook:disabled{opacity:.45;cursor:default}

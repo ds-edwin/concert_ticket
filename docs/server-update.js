@@ -11,8 +11,8 @@ $('checkConnection').addEventListener('click',async()=>{
   try{
     const api=new window.Jukebox.TicketAPI();
     const result=await api.sendHTTP('health',{},15000);
-    if(result?.depositLedger!==true||result?.guestbook!==true){const e=new Error('개별 등록·방명록 기능 업데이트가 필요합니다.');e.code='SERVER_UPDATE';throw e;}
-    $('connectionStatus').textContent='개별 등록·방명록 기능 연결 정상 ✓\n이제 구매 페이지에서 입금 신고와 티켓 발급을 이용하세요.';
+    if(result?.depositLedger!==true||result?.guestbookSheet!==1){const e=new Error('개별 등록·방명록 기능 업데이트가 필요합니다.');e.code='SERVER_UPDATE';throw e;}
+    $('connectionStatus').textContent='별도 방명록 시트 연결 정상 ✓\n메시지 이관과 참석자 컬럼 정리를 완료했습니다. 티켓 페이지 아래에서 방명록을 이용하세요.';
     $('connectionStatus').dataset.result='success';
   }catch(e){
     $('connectionStatus').textContent=e.code==='SERVER_UPDATE'

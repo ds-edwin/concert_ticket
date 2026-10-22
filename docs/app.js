@@ -23,7 +23,7 @@
   function validate() {
     const name = $('name').value.normalize('NFC').trim();
     const phoneLast4 = $('phoneLast4').value;
-    const message = $('message').value.normalize('NFC').trim();
+    const message = '';
     const errors = {
       name: !name || count(name) > 40 || /[\u0000-\u001f\u007f]/.test(name) ? '이름을 1~40자로 입력해 주세요.' : '',
       phone: !/^\d{4}$/.test(phoneLast4) ? '숫자 4자리를 입력해 주세요.' : '',
@@ -32,14 +32,8 @@
     [['name','name'],['phone','phoneLast4'],['message','message']].forEach(([key,id]) => { $(key+'Error').textContent = errors[key]; $(id).setAttribute('aria-invalid', Boolean(errors[key])); });
     if (Object.values(errors).some(Boolean)) { $(errors.name ? 'name' : errors.phone ? 'phoneLast4' : 'message').focus(); return null; }
     if (!$('consent').checked) { $('formStatus').textContent = '등록 정보 제출 동의에 체크해 주세요.'; $('consent').focus(); return null; }
-    return { name, phoneLast4, message, messagePublic: true, token: local.token };
+    return { name, phoneLast4, message: '', token: local.token };
   }
-  $('message').addEventListener('input', () => {
-    const length = count($('message').value.normalize('NFC').trim());
-    $('charCount').textContent = `${length} / 100`;
-    $('charCount').style.color = length > 100 ? '#ff93ad' : '';
-    $('message').setAttribute('aria-invalid', length > 100);
-  });
   $('phoneLast4').addEventListener('input', () => { $('phoneLast4').value = $('phoneLast4').value.normalize('NFKC').replace(/\D/g, '').slice(0,4); });
   $('name').addEventListener('input', () => { if (!issuedTicket) { $('frontName').textContent = $('name').value.trim() || 'YOUR NAME'; $('backName').textContent = $('frontName').textContent; } });
   function showTicket(ticket, celebrate = false) {
@@ -67,7 +61,7 @@
     $('issuedTitle').textContent = ticket.preview ? `${ticket.name}님의 샘플 티켓` : `${ticket.name}님의 티켓이 준비됐어요.`;
     $('issuedDetail').textContent = ticket.preview ? '디자인 체험용이며 실제 번호와 등록 기록은 생성되지 않습니다.' : `${serial} · 같은 브라우저에서 다시 열면 이 티켓을 확인할 수 있어요.\n이미지를 저장하거나 아래에서 티켓 링크를 공유할 수 있어요.`;
     syncStub();
-    $('phoneLast4').value = ''; $('message').value = '';
+    $('phoneLast4').value = '';
     if (celebrate) { rotation.y.target = Math.round(rotation.y.current / 360) * 360; rotation.x.target = 0; rotation.z.target = -1; animate(); if (!reduced) confetti(); }
   }
   function confetti() {
@@ -120,8 +114,6 @@
     $('frontName').textContent = $('backName').textContent = 'YOUR NAME';
     $('frontSerial').textContent = $('backSerial').textContent = 'No. ————';
     $('stageEdition').textContent = '001 — 1000';
-    $('charCount').textContent = '0 / 100';
-    $('charCount').style.color = '';
     ['nameError', 'phoneError', 'messageError', 'formStatus'].forEach(id => $(id).textContent = '');
     ['name', 'phoneLast4', 'message'].forEach(id => $(id).setAttribute('aria-invalid', 'false'));
     $('capacityText').textContent = '총 1,000장의 고유 번호 티켓';

@@ -33,7 +33,7 @@ function setup() {
   } else {
     var existing=sheet.getRange(1,1,1,7).getValues()[0];
     // Match by column title. The owner's order is retained, including E=체크여부.
-    HEADERS_.slice(0,5).forEach(function(h){if(existing.indexOf(h)<0)throw new Error('필수 열을 확인하세요: '+h);});
+    HEADERS_.slice(0,4).forEach(function(h){if(existing.indexOf(h)<0)throw new Error('필수 열을 확인하세요: '+h);});
     var additions=[];
     existing.forEach(function(h,i){if(h && (HEADERS_.indexOf(h)<0 || existing.indexOf(h)!==i))throw new Error(String.fromCharCode(65+i)+'열의 제목이 충돌합니다.');});
     HEADERS_.slice(5).forEach(function(h){
@@ -46,7 +46,7 @@ function setup() {
     additions.forEach(function(item){sheet.getRange(1,item[0]).setValue(item[1]);});
   }
   var map=headerMap_(sheet);
-  ['이름','연락처_뒷번호','하고 싶은 말','체크여부','_요청키'].forEach(function(h){sheet.getRange(1,map[h]+1,sheet.getMaxRows(),1).setNumberFormat('@');});
+  ['이름','연락처_뒷번호','체크여부','_요청키'].forEach(function(h){sheet.getRange(1,map[h]+1,sheet.getMaxRows(),1).setNumberFormat('@');});
   sheet.hideColumns(map['_요청키']+1);
   var setlist = ss.getSheetByName(SETLIST_SHEET_) || ss.insertSheet(SETLIST_SHEET_);
   if (setlist.getLastRow() === 0) {
@@ -58,6 +58,7 @@ function setup() {
   // Never reset this property on repeated setup, even if a sheet was edited.
   if (!props.getProperty('LAST_ISSUED')) props.setProperty('LAST_ISSUED','0');
   SpreadsheetApp.flush();
+  migrateGuestbook_();
   console.log('준비 완료: 참석자 / 셋리스트. 웹 앱으로 배포 후 /exec 주소를 config.js에 입력하세요.');
 }
 
@@ -75,6 +76,8 @@ function bridgeRequest(action, payload, pageOrigin) {
   try {
     if (!isAllowedOrigin_(pageOrigin)) fail_('ORIGIN','등록되지 않은 웹사이트입니다.');
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) fail_('VALIDATION','올바르지 않은 요청입니다.');
+    migrateGuestbook_();
+    if (action === 'postGuestbook') return {ok:true,data:postGuestbook_(payload)};
     if (action === 'guestbook') return {ok:true,data:guestbook_()};
     if (action === 'public') return {ok:true,data:publicData_()};
     if (action === 'restore') return {ok:true,data:restore_(payload.token)};
@@ -103,7 +106,7 @@ function database_() {
 }
 function headerMap_(sheet) {
   var actual=sheet.getRange(1,1,1,7).getValues()[0],map={};
-  HEADERS_.forEach(function(h){var i=actual.indexOf(h);if(i<0||actual.lastIndexOf(h)!==i)fail_('CONFIG','명부 열 제목을 확인해 주세요.');map[h]=i;});
+  HEADERS_.forEach(function(h){var i=actual.indexOf(h);if(h==='하고 싶은 말'&&i<0)return;if(i<0||actual.lastIndexOf(h)!==i)fail_('CONFIG','명부 열 제목을 확인해 주세요.');map[h]=i;});
   return map;
 }
 function assertHeaders_(sheet) { headerMap_(sheet); }
@@ -112,7 +115,7 @@ function registration_() {
   if (!sheet) fail_('CONFIG','등록 서버가 아직 준비되지 않았습니다.');
   assertHeaders_(sheet); return sheet;
 }
-function rows_(sheet) { var map=headerMap_(sheet);return sheet.getLastRow()<=1?[]:sheet.getRange(2,1,sheet.getLastRow()-1,7).getValues().map(function(row){return HEADERS_.map(function(h){return row[map[h]];});}); }
+function rows_(sheet) { var map=headerMap_(sheet);return sheet.getLastRow()<=1?[]:sheet.getRange(2,1,sheet.getLastRow()-1,7).getValues().map(function(row){return HEADERS_.map(function(h){return map[h]===undefined?'':row[map[h]];});}); }
 function hash_(token) { return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,token,Utilities.Charset.UTF_8).map(function(b){return ('0'+((b+256)%256).toString(16)).slice(-2);}).join(''); }
 function asText_(value) { return /^[=+\-@']/.test(value) ? "'"+value : value; }
 function readText_(value) { return String(value == null ? '' : value); }
@@ -137,8 +140,7 @@ function validateInput_(input) {
   return {name:name,phoneLast4:phone,message:message,token:input.token};
 }
 function issue_(payload) {
-  var input=validateInput_(payload);
-  if(payload.messagePublic===true && input.message)input.message='[방명록] '+input.message;
+  var input=validateInput_({token:payload.token,name:payload.name,phoneLast4:payload.phoneLast4,message:''});
   var lock=LockService.getScriptLock();
   if(!lock.tryLock(20000))fail_('BUSY','신청이 몰리고 있어요. 잠시 후 다시 눌러 주세요.');
   try {
@@ -149,9 +151,9 @@ function issue_(payload) {
     // Contact suffix is TEXT: "0007" must remain four characters.
     var map=headerMap_(sheet),canonical=[now,serial,asText_(input.name),input.phoneLast4,asText_(input.message),requestHash,''],row=[];
     if(index>sheet.getMaxRows())sheet.insertRowsAfter(sheet.getMaxRows(),index-sheet.getMaxRows());
-    HEADERS_.forEach(function(h,i){row[map[h]]=canonical[i];});
-    ['이름','연락처_뒷번호','하고 싶은 말','_요청키','체크여부'].forEach(function(h){sheet.getRange(index,map[h]+1).setNumberFormat('@');});
-    sheet.getRange(index,1,1,7).setValues([row]);
+    HEADERS_.forEach(function(h,i){if(map[h]!==undefined)row[map[h]]=canonical[i];});
+    ['이름','연락처_뒷번호','_요청키','체크여부'].forEach(function(h){sheet.getRange(index,map[h]+1).setNumberFormat('@');});
+    sheet.getRange(index,1,1,row.length).setValues([row]);
     SpreadsheetApp.flush(); // Commit before releasing the lock.
     PropertiesService.getScriptProperties().setProperty('LAST_ISSUED',String(serial));
     return {serial:serial,name:input.name,issuedAt:now.toISOString(),checked:false};
@@ -210,12 +212,13 @@ function doPost(e) {
     requestId = request.requestId;
     if (request.protocol !== 'jukebox-http-v1') fail_('VERSION', '티켓 페이지를 새로 열어 주세요.');
     if (!isAllowedOrigin_(request.pageOrigin)) fail_('ORIGIN', '등록되지 않은 웹사이트입니다.');
+    migrateGuestbook_();
     if (request.action === 'health') {
-      result = {ok:true,data:{version:1,depositLedger:true,guestbook:true}};
+      result = {ok:true,data:{version:1,depositLedger:true,guestbook:true,guestbookSheet:1}};
     } else if (request.action === 'deposit') {
       result = {ok:true,data:recordDeposit_(request.payload)};
     } else {
-      if (['issue','restore','check','guestbook'].indexOf(request.action) < 0) fail_('ACTION', '지원하지 않는 요청입니다.');
+      if (['issue','restore','check','guestbook','postGuestbook'].indexOf(request.action) < 0) fail_('ACTION', '지원하지 않는 요청입니다.');
       result = bridgeRequest(request.action, request.payload, request.pageOrigin);
     }
   } catch (err) {
@@ -267,8 +270,71 @@ function recordDeposit_(payload) {
   } finally {lock.releaseLock();}
 }
 
-/** Only explicitly public messages; never return attendee identifiers. */
+
+function guestbookSheet_() {
+ var ss=database_(),sheet=ss.getSheetByName('방명록');
+ if(!sheet)sheet=ss.insertSheet('방명록');
+ var headers=['입력일시','이름','방명록내용','_요청키','_공개여부'];
+ if(sheet.getLastRow()===0){
+  sheet.getRange(1,1,1,5).setValues([headers]);sheet.setFrozenRows(1);
+  sheet.getRange(1,1,1,5).setBackground('#191329').setFontColor('#f6eafa').setFontWeight('bold');
+  sheet.setColumnWidth(1,190);sheet.setColumnWidth(2,150);sheet.setColumnWidth(3,430);sheet.hideColumns(4,2);
+ }
+ var actual=sheet.getRange(1,1,1,5).getValues()[0];
+ if(headers.some(function(h,i){return actual[i]!==h;}))fail_('CONFIG','방명록 열 제목을 확인해 주세요.');
+ return sheet;
+}
+function appendGuestbookRow_(sheet,date,name,message,key,isPublic) {
+ var index=sheet.getLastRow()+1;
+ if(index>sheet.getMaxRows())sheet.insertRowsAfter(sheet.getMaxRows(),index-sheet.getMaxRows());
+ sheet.getRange(index,1).setNumberFormat('yyyy-mm-dd hh:mm:ss');
+ sheet.getRange(index,2,1,3).setNumberFormat('@');
+ sheet.getRange(index,1,1,5).setValues([[date,asText_(name),asText_(message),key,isPublic]]);
+}
+function migrateGuestbook_() {
+ var reg=database_().getSheetByName(REGISTRATION_SHEET_);
+ if(!reg)return;
+ var header=reg.getRange(1,1,1,7).getValues()[0],column=header.indexOf('하고 싶은 말');
+ if(column<0&&database_().getSheetByName('방명록'))return;
+ var lock=LockService.getScriptLock();if(!lock.tryLock(20000))fail_('BUSY','방명록을 준비 중입니다. 잠시 후 다시 확인해 주세요.');
+ try{
+  header=reg.getRange(1,1,1,7).getValues()[0];column=header.indexOf('하고 싶은 말');var sheet=guestbookSheet_();if(column<0)return;
+  HEADERS_.forEach(function(h){if(header.indexOf(h)<0||header.indexOf(h)!==header.lastIndexOf(h))fail_('CONFIG','참석자 열 제목을 확인해 주세요.');});
+  var saved=sheet.getLastRow()>1?sheet.getRange(2,4,sheet.getLastRow()-1,1).getValues().map(function(r){return r[0];}):[];
+  var data=reg.getLastRow()>1?reg.getRange(2,1,reg.getLastRow()-1,7).getValues():[];
+  data.forEach(function(row){
+   var message=String(row[column]||'');if(!message.trim())return;
+   var key=hash_('legacy-guestbook|'+row[header.indexOf('_요청키')]+'|'+row[header.indexOf('연번')]+'|'+row[header.indexOf('입력일시')]);
+   if(saved.indexOf(key)>=0)return;
+   var publicMessage=message.indexOf('[방명록] ')===0;
+   appendGuestbookRow_(sheet,row[header.indexOf('입력일시')],String(row[header.indexOf('이름')]||''),publicMessage?message.slice(6):message,key,publicMessage);
+   saved.push(key);
+  });
+  SpreadsheetApp.flush();
+  reg.deleteColumn(column+1);
+  SpreadsheetApp.flush();
+ }finally{lock.releaseLock();}
+}
 function guestbook_() {
-  var prefix='[방명록] ';
-  return {messages:rows_(registration_()).map(function(row){return String(row[4]||'');}).filter(function(message){return message.indexOf(prefix)===0 && message.slice(prefix.length).trim();}).map(function(message){return message.slice(prefix.length);})};
+ var sheet=guestbookSheet_();
+ var rows=sheet.getLastRow()>1?sheet.getRange(2,1,sheet.getLastRow()-1,5).getValues():[];
+ return {messages:rows.filter(function(r){return r[4]===true&&String(r[2]||'').trim();}).map(function(r){return String(r[2]);})};
+}
+function postGuestbook_(payload) {
+ if(!validToken_(payload.token)||!validToken_(payload.messageToken))fail_('VALIDATION','유효한 티켓과 전송 번호가 필요합니다.');
+ var message=typeof payload.message==='string'?payload.message.normalize('NFC').trim():'';
+ if(!message||Array.from(message).length>100||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(message))fail_('VALIDATION','방명록은 1~100자로 입력해 주세요.');
+ if(payload.publicConsent!==true)fail_('VALIDATION','익명 공개 동의를 확인해 주세요.');
+ var lock=LockService.getScriptLock();if(!lock.tryLock(20000))fail_('BUSY','잠시 후 다시 보내주세요.');
+ try{
+  var ticket=findRequest_(rows_(registration_()),hash_(payload.token));if(!ticket)fail_('NOT_FOUND','먼저 본인 이름으로 티켓을 발급받아 주세요.');
+  var sheet=guestbookSheet_(),key=hash_(payload.token+'|'+payload.messageToken);
+  var rows=sheet.getLastRow()>1?sheet.getRange(2,1,sheet.getLastRow()-1,5).getValues():[];
+  for(var i=0;i<rows.length;i++)if(rows[i][3]===key){
+   if(String(rows[i][2])!==message)fail_('CONFLICT','전송 중인 글이 있습니다. 처음 보낸 내용으로 다시 확인해 주세요.');
+   return {recorded:true};
+  }
+  appendGuestbookRow_(sheet,new Date(),ticket.name,message,key,true);
+  SpreadsheetApp.flush();return {recorded:true};
+ }finally{lock.releaseLock();}
 }
