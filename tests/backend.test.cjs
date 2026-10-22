@@ -10,7 +10,7 @@ function environment(){
   const targetId='test-spreadsheet-id';
   const props=new Map([['SPREADSHEET_ID',targetId],['ALLOWED_ORIGINS','https://ds-edwin.github.io'],['LAST_ISSUED','0']]);
   const headers=['입력일시','연번','이름','연락처_뒷번호','하고 싶은 말','_요청키','체크여부'];
-  const data=[headers];const songs=[['연번','제목','아티스트','url']];const events=[];
+  const deposits=[]; let depositExists=false; const data=[headers];const songs=[['연번','제목','아티스트','url']];const events=[];
   let locked=false,contended=false,propertyFailure=false,settingUp=false;
   function sheet(rows){return {
     getLastRow:()=>rows.length,getMaxRows:()=>1000,insertRowsAfter(){events.push('grow');},
@@ -26,7 +26,7 @@ function environment(){
     }
   };}
   const reg=sheet(data),setlist=sheet(songs);
-  const ss={getId:()=>targetId,setSpreadsheetTimeZone(){},getSheetByName:n=>n==='참석자'?reg:n==='셋리스트'?setlist:null};
+  const ss={getId:()=>targetId,setSpreadsheetTimeZone(){},getSheetByName:n=>n==='참석자'?reg:n==='셋리스트'?setlist:n==='입금내역'&&depositExists?sheet(deposits):null,insertSheet(n){assert.equal(n,'입금내역');depositExists=true;return sheet(deposits);}};
   const context=vm.createContext({console,Date,Array,Number,String,Error,JSON,Math,
     ContentService:{MimeType:{JSON:'application/json'},createTextOutput:text=>({text,setMimeType(){return this;}})},
     Session:{getActiveUser:()=>({getEmail:()=> 'owner@example.test'}),getEffectiveUser:()=>({getEmail:()=> 'owner@example.test'})},
@@ -36,7 +36,7 @@ function environment(){
     Utilities:{DigestAlgorithm:{SHA_256:'sha256'},Charset:{UTF_8:'utf8'},computeDigest:(_,s)=>Array.from(crypto.createHash('sha256').update(s).digest())}
   });
   vm.runInContext(code,context);
-  return {context,data,songs,props,events,call:(action,payload={},origin='https://ds-edwin.github.io')=>context.bridgeRequest(action,payload,origin),setup:()=>{settingUp=true;try{return context.setup();}finally{settingUp=false;}},contend:()=>contended=true,failPropertyOnce:()=>propertyFailure=true};
+  return {context,data,deposits,songs,props,events,call:(action,payload={},origin='https://ds-edwin.github.io')=>context.bridgeRequest(action,payload,origin),setup:()=>{settingUp=true;try{return context.setup();}finally{settingUp=false;}},contend:()=>contended=true,failPropertyOnce:()=>propertyFailure=true};
 }
 const input=(changes={})=>({token:crypto.randomUUID(),name:'테스트 관객',phoneLast4:'0007',message:'멋진 공연 기대해요!',...changes});
 const tests=[];const test=(name,fn)=>tests.push([name,fn]);
@@ -48,7 +48,7 @@ test('public setlist returns artist, exposes no registration PII, restricts link
 test('unknown bearer token cannot retrieve a ticket; wrong origin cannot issue',()=>{const e=environment();e.call('issue',input());assert.equal(e.call('restore',{token:crypto.randomUUID()}).data,null);assert.equal(e.call('issue',input(),'https://evil.test').code,'ORIGIN');assert.equal(e.data.length,2);});
 test('lock contention never writes an unprotected row',()=>{const e=environment();e.contend();assert.equal(e.call('issue',input()).code,'BUSY');assert.equal(e.data.length,1);});
 test('commit followed by response failure is recovered without issuing a second ticket',()=>{const e=environment(),p=input();e.failPropertyOnce();assert.equal(e.call('issue',p).ok,false);assert.equal(e.data.length,2);assert.equal(e.call('issue',p).data.serial,1);assert.equal(e.call('issue',input()).data.serial,2);assert.equal(e.data.length,3);});
-test('deleting the latest row does not cause serial reuse; duplicate serial edit fails closed',()=>{const e=environment();e.call('issue',input());e.data.pop();assert.equal(e.call('issue',input()).data.serial,2);e.data.push(e.data[1].slice());assert.equal(e.call('issue',input()).code,'CONFIG');});
+test('clearing all attendee rows restarts serial at one; duplicate serial edit fails closed',()=>{const e=environment();e.call('issue',input());e.data.pop();assert.equal(e.call('issue',input()).data.serial,1);e.data.push(e.data[1].slice());assert.equal(e.call('issue',input()).code,'CONFIG');});
 test('setup preserves existing five columns and setlist; only adds unused F header',()=>{
   const e=environment();e.data[0]=e.data[0].slice(0,5);e.data.push([new Date('2026-10-21T00:00:00Z'),27,'Existing attendee','0001','Existing message']);
   e.songs.push([1,'Existing song','Existing artist','https://youtu.be/abc']);e.props.set('LAST_ISSUED','27');
@@ -65,7 +65,7 @@ test('setup refuses occupied F data with a blank header and preserves every cell
 test('setup refuses an unrelated occupied F header without overwriting it',()=>{
   const e=environment();e.data[0][5]='Existing owner column';const before=e.data.map(row=>row.slice());assert.throws(()=>e.setup());assert.deepEqual(e.data,before);assert.ok(!e.events.includes('write'));
 });
-test('frontend scripts parse without a build step',()=>{for(const f of ['config.js','api.js','app.js'])new vm.Script(fs.readFileSync(path.join(__dirname,'../docs',f),'utf8'),{filename:f});});
+test('frontend scripts parse without a build step',()=>{for(const f of ['config.js','api.js','app.js','purchase.js','landing.js','server-update.js'])new vm.Script(fs.readFileSync(path.join(__dirname,'../docs',f),'utf8'),{filename:f});});
 test('check marks only the token owner, retries safely and reflects sheet edits',()=>{const e=environment(),p=input(),q=input();e.call('issue',p);e.call('issue',q);assert.equal(e.call('check',{token:p.token}).data.checked,true);assert.equal(e.data[1][6],'O');assert.equal(e.data[2][6],'');assert.equal(e.call('check',{token:p.token}).data.serial,1);assert.equal(e.call('check',{token:crypto.randomUUID()}).code,'NOT_FOUND');e.data[2][6]='O';assert.equal(e.call('restore',{token:q.token}).data.checked,true);e.data[1][6]='';assert.equal(e.call('restore',{token:p.token}).data.checked,false);});
 test('setup migrates six-column sheet preserving checks on rerun',()=>{const e=environment();e.data[0].pop();e.setup();assert.equal(e.data[0][6],'체크여부');const p=input();e.call('issue',p);e.call('check',{token:p.token});e.setup();assert.equal(e.data[1][6],'O');});
 test('setup refuses occupied G column',()=>{const e=environment();e.data[0][6]='Other';assert.throws(()=>e.setup(),/G/);assert.equal(e.data[0][6],'Other');});
@@ -113,5 +113,33 @@ test('HTTP transport recovers a committed row after a server response failure',(
   assert.equal(restored.ok,true);assert.equal(restored.data.serial,1);assert.equal(e.data.length,2);
 });
 
+
+const depositInput=(changes={})=>({orderToken:crypto.randomUUID(),name:'홍길동',phoneLast4:'0007',quantity:3,...changes});
+test('deposit records one purchase row and retry preserves timestamp without issuing tickets',()=>{
+ const e=environment(),p=depositInput(),a=httpCall(e,'deposit',p),b=httpCall(e,'deposit',p);
+ assert.equal(a.ok,true);assert.equal(a.data.quantity,3);assert.equal(b.data.submittedAt,a.data.submittedAt);
+ assert.equal(e.deposits.length,2);assert.equal(e.deposits[1][1],'홍길동0007');assert.equal(e.deposits[1][2],3);
+ assert.equal(e.data.length,1);assert.match(e.deposits[1][3],/^[a-f0-9]{64}$/);
+ assert.equal(httpCall(e,'health').data.depositLedger,true);
+});
+test('deposit rejects changed purchases and invalid quantities without additional rows',()=>{
+ const e=environment(),p=depositInput();httpCall(e,'deposit',p);
+ for(const change of [{quantity:4},{name:'다른이름'},{phoneLast4:'1234'}])assert.equal(httpCall(e,'deposit',{...p,...change}).code,'CONFLICT');
+ for(const q of [0,11,1.5,'3',null])assert.equal(httpCall(e,'deposit',depositInput({quantity:q})).code,'VALIDATION');
+ assert.equal(e.deposits.length,2);
+ assert.equal(httpCall(e,'deposit',depositInput()).ok,true);assert.equal(e.deposits.length,3);
+});
+test('deposit preserves literal names and supports reordered headers',()=>{
+ const e=environment(),p=depositInput({name:'=SUM(1)'});httpCall(e,'deposit',p);
+ assert.equal(e.deposits[1][1],'=SUM(1)0007');assert.equal(e.call('deposit',p).ok,true);
+ e.deposits.forEach(r=>r.reverse());
+ assert.equal(httpCall(e,'deposit',p).ok,true);
+ assert.equal(httpCall(e,'deposit',depositInput({quantity:10})).ok,true);assert.equal(e.deposits[2][1],10);
+});
+test('deposit origin and lock failures cannot write',()=>{
+ const e=environment(),p=depositInput();
+ assert.equal(httpCall(e,'deposit',p,{pageOrigin:'https://evil.test'}).code,'ORIGIN');
+ e.contend();assert.equal(httpCall(e,'deposit',p).code,'BUSY');assert.equal(e.deposits.length,0);
+});
 let passed=0;for(const [name,fn]of tests){try{fn();passed++;console.log('PASS '+name);}catch(e){console.error('FAIL '+name);console.error(e);process.exitCode=1;}}
 console.log(`${passed}/${tests.length} behavioral checks passed`);

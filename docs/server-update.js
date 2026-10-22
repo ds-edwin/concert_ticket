@@ -11,8 +11,8 @@ $('checkConnection').addEventListener('click',async()=>{
   try{
     const api=new window.Jukebox.TicketAPI();
     const result=await api.sendHTTP('health',{},15000);
-    if(result?.version!==1)throw new Error('서버 버전을 확인하지 못했습니다.');
-    $('connectionStatus').textContent='새 서버 연결 정상 ✓\n이제 티켓 페이지를 새로 열어 발급·불러오기를 이용하세요.';
+    if(result?.depositLedger!==true){const e=new Error('입금내역 저장 기능 업데이트가 필요합니다.');e.code='SERVER_UPDATE';throw e;}
+    $('connectionStatus').textContent='입금내역 저장 기능 연결 정상 ✓\n이제 구매 페이지에서 입금 신고와 티켓 발급을 이용하세요.';
     $('connectionStatus').dataset.result='success';
   }catch(e){
     $('connectionStatus').textContent=e.code==='SERVER_UPDATE'

@@ -57,6 +57,16 @@ async function issuePurchase(){
  const payerHash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(payer.label)))).map(b=>b.toString(16).padStart(2,'0')).join('');
  if(order.payerHash&&order.payerHash!==payerHash)throw new Error('진행 중인 구매의 입금자 정보와 달라요. 처음 입력한 이름과 뒷번호를 입력해 주세요.');
  order.payerHash=payerHash;order.submitted=true;P.writeOrder(order);
+ $('paidButton').textContent='입금 내역 기록 중…';
+ $('paymentStatus').textContent='입금자 정보와 매수를 기록하고 있어요.';
+ let deposit;
+ try{
+  deposit=await api.sendHTTP('deposit',{orderToken:order.id,name:payer.name,phoneLast4:payer.phoneLast4,quantity:order.quantity},40000);
+ }catch(e){
+  if(['ACTION','SERVER_UPDATE'].includes(e.code))throw new Error('입금내역 저장 기능의 서버 업데이트가 필요합니다. 주최 측에 문의해 주세요.');
+  throw e;
+ }
+ if(deposit?.recorded!==true||deposit.quantity!==order.quantity)throw new Error('입금 내역 저장 결과를 확인하지 못했어요.');
  // Tokens are durable before any network write; reload/retry cannot issue duplicates.
  for(let i=0;i<order.quantity;i++){
   $('paidButton').textContent='티켓 준비 중 '+(i+1)+' / '+order.quantity;
