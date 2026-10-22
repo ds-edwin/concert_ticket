@@ -10,7 +10,7 @@ const price=Number.isInteger(config.unitPrice)&&config.unitPrice>0?config.unitPr
 const money=n=>n.toLocaleString('ko-KR')+'원';
 function toast(text){$('landingToast').textContent=text;$('landingToast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('landingToast').hidden=true,3500);}
 function saveDraft(){try{sessionStorage.setItem(draftKey,JSON.stringify({quantity,payerInput:$('payerInput').value,consent:$('purchaseConsent').checked,step}));}catch{}}
-try{const draft=JSON.parse(sessionStorage.getItem(draftKey)||'null');if(draft){quantity=Math.min(10,Math.max(1,Number(draft.quantity)||1));$('payerInput').value=String(draft.payerInput||'').slice(0,44);$('purchaseConsent').checked=draft.consent===true;}}catch{}
+try{const draft=JSON.parse(sessionStorage.getItem(draftKey)||'null');if(draft){quantity=Math.min(10,Math.max(1,Math.trunc(Number(draft.quantity))||1));$('payerInput').value=String(draft.payerInput||'').slice(0,44);$('purchaseConsent').checked=draft.consent===true;}}catch{}
 function drawQuantity(){$('quantityValue').textContent=quantity;$('minusButton').disabled=quantity===1||Boolean(order?.submitted);$('plusButton').disabled=quantity===10||Boolean(order?.submitted);$('quantityTotal').textContent=money(quantity*price);}
 function showStep(value,focus=true){
  step=Math.min(3,Math.max(0,value));
@@ -61,7 +61,7 @@ async function issuePurchase(){
  $('paymentStatus').textContent='입금자 정보와 매수를 기록하고 있어요.';
  let deposit;
  try{
-  deposit=await api.sendHTTP('deposit',{orderToken:order.id,name:payer.name,phoneLast4:payer.phoneLast4,quantity:order.quantity},40000);
+  deposit=await api.request('deposit',{orderToken:order.id,name:payer.name,phoneLast4:payer.phoneLast4,quantity:order.quantity});
  }catch(e){
   if(['ACTION','SERVER_UPDATE'].includes(e.code))throw new Error('입금내역 저장 기능의 서버 업데이트가 필요합니다. 주최 측에 문의해 주세요.');
   throw e;

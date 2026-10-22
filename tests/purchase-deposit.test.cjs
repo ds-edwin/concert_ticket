@@ -10,7 +10,7 @@ order:null,quantity:3,payer:{name:'홍길동',phoneLast4:'0007',label:'홍길동
 crypto:crypto.webcrypto,TextEncoder,Uint8Array,Array,Error,
 $:id=>{if(!elements.has(id))elements.set(id,{});return elements.get(id);},
 P:{readOrder:()=>order,writeOrder:()=>{},readTicket:t=>tickets.get(t),saveTicket:(t,ticket)=>tickets.set(t,{ticket}),ticketUrl:t=>'#ticket='+t},
-api:{sendHTTP:async(action,payload)=>{calls.push({action,payload});if(failDeposit){failDeposit=false;throw new Error('lost deposit response');}return{recorded:true,quantity:3};},
+api:{request:async(action,payload)=>{calls.push({action,payload});if(failDeposit){failDeposit=false;throw new Error('lost deposit response');}return{recorded:true,quantity:3};},
 issue:async payload=>{calls.push({action:'issue',payload});if(failIssue){failIssue=false;throw new Error('lost issue response');}return{serial:tickets.size+1,name:payload.name};}},
 sessionStorage:{removeItem:()=>{}},draftKey:'draft',location:{assign:url=>redirect=url}
 });

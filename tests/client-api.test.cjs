@@ -165,7 +165,7 @@ test('direct transport issues and restores without an iframe or Google cookies',
   }});
   assert.equal((await h.api.issue({token:'retained-token'})).serial,11);
   assert.equal((await h.api.request('restore',{token:'retained-token'})).serial,11);
-  assert.deepEqual(calls.map(c=>c.action),['health','issue','restore']);
+  assert.deepEqual(calls.map(c=>c.action),['issue','restore']);
   assert.equal(h.frames.length,0);
   assert.equal(h.timers.size,0);
 });
@@ -181,8 +181,8 @@ test('direct write timeout recovers the committed row without resending the writ
   await flush();await flush();
   h.fire(40000);
   assert.equal((await result).serial,12);
-  assert.deepEqual(calls.map(c=>c.action),['health','issue','restore']);
-  assert.equal(calls[2].payload.token,calls[1].payload.token);
+  assert.deepEqual(calls.map(c=>c.action),['issue','restore']);
+  assert.equal(calls[1].payload.token,calls[0].payload.token);
   assert.equal(h.frames.length,0);
 });
 
@@ -192,17 +192,70 @@ test('a direct response for another request cannot confirm a ticket',async()=>{
     return httpReply(options,request.action==='health'?{version:1}:{serial:13},
       request.action==='health'?{}:{requestId:'wrong-request'});
   }});
-  const result=await h.api.request('restore',{token:'retained-token'}).catch(e=>e);
-  assert.equal(result.code,'RESPONSE');
+  const pending=h.api.request('restore',{token:'retained-token'}).catch(e=>e);
+  await flush();h.fire(600);
+  assert.equal((await pending).code,'RESPONSE');
 });
 
-test('an old server remains on the legacy transport until the HTTP update is deployed',async()=>{
+test('a malformed HTTP endpoint fails clearly without falling into a cookie-dependent iframe',async()=>{
   const h=harness({directRequests:true,fetch:async()=>({ok:true,text:async()=>'<html>doPost not found</html>'})});
-  const result=h.api.request('restore',{token:'retained-token'});
-  await flush();await flush();
-  assert.equal(h.frames.length,1);
-  h.ready();await flush();
-  h.reply(h.requests()[0],{serial:14,name:'테스트'});
-  assert.equal((await result).serial,14);
-  assert.equal(h.api.probeError,'SERVER_UPDATE');
+  const result=await h.api.request('restore',{token:'retained-token'}).catch(e=>e);
+  assert.equal(result.code,'SERVER_UPDATE');
+  assert.equal(h.frames.length,0);
+});
+
+test('guestbook reads retry one transient HTTP failure automatically',async()=>{
+  let calls=0;
+  const h=harness({directRequests:true,fetch:async(url,options)=>{
+    if(++calls===1)throw new TypeError('connection reset');
+    return httpReply(options,{messages:['public message']});
+  }});
+  const result=h.api.request('guestbook');
+  await flush();h.fire(600);
+  assert.equal((await result).messages[0],'public message');
+  assert.equal(calls,2);assert.equal(h.frames.length,0);assert.equal(h.timers.size,0);
+});
+
+test('simultaneous guestbook readers share a request and settle independently',async()=>{
+  let calls=0,release;
+  const h=harness({directRequests:true,fetch:(url,options)=>{
+    calls++;return new Promise(resolve=>{release=()=>resolve(httpReply(options,{messages:[]}));});
+  }});
+  const a=h.api.request('guestbook'),b=h.api.request('guestbook');
+  assert.equal(a,b);assert.equal(calls,1);release();
+  await Promise.all([a,b]);
+  const c=h.api.request('guestbook');assert.equal(calls,2);release();await c;
+});
+
+test('read timeouts are bounded, release the shared slot, and do not become a permanent transport failure',async()=>{
+  const h=harness({directRequests:true,fetch:(url,options)=>new Promise((resolve,reject)=>{
+    options.signal.addEventListener('abort',()=>reject(new Error('aborted')));
+  })});
+  const result=h.api.request('guestbook').catch(e=>e);
+  h.fire(12000);await flush();h.fire(600);await flush();h.fire(20000);await flush();
+  assert.equal((await result).code,'TIMEOUT');
+  assert.equal(h.timers.size,0);assert.equal(h.frames.length,0);
+  const next=h.api.request('guestbook').catch(e=>e);
+  h.fire(12000);await flush();h.fire(600);await flush();h.fire(20000);
+  assert.equal((await next).code,'TIMEOUT');
+});
+
+test('guestbook and deposit writes are not automatically duplicated on network failure',async()=>{
+  for(const action of ['postGuestbook','deposit']){
+    let calls=0;
+    const h=harness({directRequests:true,fetch:async()=>{calls++;throw new TypeError('lost response');}});
+    assert.equal((await h.api.request(action,{token:'same-token'}).catch(e=>e)).code,'NETWORK');
+    assert.equal(calls,1);assert.equal(h.timers.size,0);
+  }
+});
+
+test('a server error after issuance can recover an already committed ticket',async()=>{
+  const actions=[];
+  const h=harness({directRequests:true,fetch:async(url,options)=>{
+    const {action}=JSON.parse(options.body);actions.push(action);
+    return httpReply(options,action==='restore'?{serial:17,name:'test'}:null,
+      action==='issue'?{ok:false,code:'SERVER',message:'result lost'}:{});
+  }});
+  assert.equal((await h.api.issue({token:'retained-token'})).serial,17);
+  assert.deepEqual(actions,['issue','restore']);
 });

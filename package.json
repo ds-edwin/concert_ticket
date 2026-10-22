@@ -3,5 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "JUKEBOX 3D ticket, Google Sheets registration, GitHub Pages static deployment",
-  "scripts": { "start": "node scripts/serve.cjs", "test": "node tests/backend.test.cjs" }
+  "scripts": {
+    "start": "node scripts/serve.cjs",
+    "test": "node --test tests/backend.test.cjs tests/client-api.test.cjs tests/purchase-deposit.test.cjs",
+    "test:browser": "node --test tests/browser-flows.test.cjs"
+  }
 }

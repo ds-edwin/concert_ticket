@@ -9,11 +9,12 @@
   if (linkedToken) document.documentElement.setAttribute('data-linked-ticket', 'true');
   const storageKey = `jukebox:${config.eventId}:${api.preview ? 'preview' : config.endpoint}` + (validLinkedToken ? ':ticket:' + linkedToken : linkedToken ? ':invalid-link' : '');
   let issuedTicket = null, busy = false, soldOut = false, restoring = false, toastTimer;
-  let restoreRequest = null, restoreInteractive = false;
+  let restoreRequest = null, restoreInteractive = false, lastRestoreAt = 0;
   let cutArmed = false, cutGesture = null, checkRevision = 0;
   function readState() { try { return JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch { return null; } }
   function saveState(value) { try { localStorage.setItem(storageKey, JSON.stringify(value)); return true; } catch { return false; } }
-  let local = readState() || {};
+  const savedState = readState();
+  let local = savedState || {};
   // A random request token is retained before sending. Never store phone/message.
   if (!local.token || !/^[a-f0-9-]{36}$/.test(local.token)) local = { token: window.Jukebox.uuid() };
   if (validLinkedToken) local.token = linkedToken;
@@ -140,6 +141,7 @@
     // Manual confirmation joins an existing background lookup instead of silently returning.
     if (restoreRequest) return restoreRequest;
     restoring = true;
+    lastRestoreAt = Date.now();
     $('restoreButton').disabled = true;
     $('restoreButton').textContent = '내 티켓 확인 중…';
     const revision = checkRevision;
@@ -315,7 +317,7 @@
     if(e.key==='Enter'||e.key===' '){e.preventDefault();finishCut();}
     if(e.key==='Escape'&&!checking)setCutArmed(false);
   });
-  function syncCheck(){if(api.preview||!issuedTicket||checking||restoring||busy||cutGesture||document.hidden)return;return restoreTicket(true);}
+  function syncCheck(){if(api.preview||!issuedTicket||checking||restoring||busy||cutGesture||document.hidden||Date.now()-lastRestoreAt<10000)return;return restoreTicket(true);}
   function syncVisible() {
     if (document.hidden) return;
     syncCheck();
@@ -323,6 +325,7 @@
   setInterval(syncVisible,30000);
   document.addEventListener('visibilitychange',syncVisible);
   window.addEventListener('focus',syncVisible);
+  window.addEventListener('online',()=>{lastRestoreAt=0;syncVisible();});
 
   const rotation={x:{current:5,target:5,velocity:0},y:{current:-8,target:-8,velocity:0},z:{current:-2,target:-2,velocity:0}};
   let frame=0, drag=null, dragged=false, lastFrame=0, tapOnCard=false;
@@ -474,8 +477,8 @@
     paint();
     renderTracks(config.setlist || []);
     if(local.ticket){try{showTicket(local.ticket);}catch{delete local.ticket;saveState(local);}}
-    if(!api.preview){
-      // Recover even when a previous request committed but the response was lost.
+    if(!api.preview&&(validLinkedToken||savedState?.token)){
+      // Restore existing links and uncertain writes, but skip a brand-new visitor.
       await restoreTicket(true);
     }
   }

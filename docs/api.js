@@ -1,9 +1,13 @@
-/* Prefer a cookie-independent JSON POST. Keep the legacy bridge only until the
-   server update is deployed. Uncertain writes are recovered by token lookup. */
+/* Cookie-independent JSON POST with bounded read retries.
+   Writes keep their original tokens and are never replayed automatically. */
 (function () {
   'use strict';
   const config = window.TICKET_CONFIG;
   const error = (code, message) => Object.assign(new Error(message), { code });
+  const readActions = new Set(['health', 'public', 'restore', 'guestbook']);
+  const transientErrors = new Set(['CONNECT', 'TIMEOUT', 'NETWORK', 'BUSY', 'SERVER', 'RESPONSE']);
+  // Share simultaneous reads across the ticket and guestbook controllers.
+  const inFlightReads = new Map();
   const uuid = () => {
     if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
     const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -147,7 +151,7 @@
       const requestId = uuid();
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(),
-        timeoutMs || (['issue', 'check'].includes(action) ? 40000 : 20000));
+        timeoutMs || (readActions.has(action) ? 20000 : 40000));
       try {
         // A simple POST avoids OPTIONS preflight and does not depend on Google cookies.
         // Tokens and personal input stay in the POST body, never in the URL.
@@ -158,7 +162,7 @@
           body: JSON.stringify({ protocol: 'jukebox-http-v1', requestId, action, payload, pageOrigin: location.origin }),
           signal: controller.signal
         });
-        if (!response.ok) throw error('NETWORK', '발급 서버에 연결하지 못했어요. 잠시 후 다시 확인해 주세요.');
+        if (!response.ok) throw error(response.status === 429 ? 'BUSY' : 'NETWORK', '서버 연결이 늦어지고 있어요. 잠시 후 다시 확인해 주세요.');
         let result;
         try { result = JSON.parse(await response.text()); }
         catch { throw error('SERVER_UPDATE', '발급 서버에 연결 업데이트가 필요합니다.'); }
@@ -173,30 +177,17 @@
         throw error('NETWORK', '발급 서버에 연결하지 못했어요. 잠시 후 다시 확인해 주세요.');
       } finally { clearTimeout(timer); }
     }
-    selectTransport() {
-      if (!config.directRequests) return Promise.resolve('bridge');
-      if (this.transportProbe) return this.transportProbe;
-      this.transportProbe = this.sendHTTP('health', {}, 15000).then(() => 'http').catch(e => {
-        this.probeError = e.code || 'NETWORK';
-        // Keep the currently deployed server usable until its HTTP update is published.
-        return 'bridge';
-      }).then(mode => {
-        this.transport = mode;
-        document.documentElement?.setAttribute('data-ticket-transport', mode);
-        if (this.probeError) document.documentElement?.setAttribute('data-ticket-probe', this.probeError);
-        return mode;
-      });
-      return this.transportProbe;
-    }
-    async send(action, payload) {
-      if (!config.directRequests) return this.sendBridge(action, payload);
-      const mode = await this.selectTransport();
-      return mode === 'http' ? this.sendHTTP(action, payload) : this.sendBridge(action, payload);
+    async send(action, payload, timeoutMs) {
+      const mode = config.directRequests ? 'http' : 'bridge';
+      document.documentElement?.setAttribute('data-ticket-transport', mode);
+      // The deployed server supports HTTP. A separate health probe doubles the
+      // first lookup and a temporary probe failure used to pin this page to an iframe.
+      return mode === 'http' ? this.sendHTTP(action, payload, timeoutMs) : this.sendBridge(action, payload);
     }
     async issue(payload, onRecovery = () => {}) {
       try { return await this.request('issue', payload); }
       catch (issueError) {
-        if (!['CONNECT', 'TIMEOUT', 'NETWORK'].includes(issueError.code)) throw issueError;
+        if (!transientErrors.has(issueError.code)) throw issueError;
         onRecovery();
         // The write may already be committed. Look it up by the same stored token.
         // Never manufacture a successful ticket or create a second issuance here.
@@ -208,20 +199,32 @@
           '발급 여부를 확인하지 못했어요. 잠시 후 이 브라우저에서 ‘내 티켓 다시 확인’을 눌러 주세요.');
       }
     }
-    async request(action, payload = {}) {
+    request(action, payload = {}) {
       if (this.preview) {
-        if (action === 'public') return { issued: null, capacity: config.capacity, tracks: [] };
-        throw error('PREVIEW', '미리보기에서는 실제 발급을 하지 않습니다.');
+        if (action === 'public') return Promise.resolve({ issued: null, capacity: config.capacity, tracks: [] });
+        if (action === 'guestbook') return Promise.resolve({ messages: [] });
+        return Promise.reject(error('PREVIEW', '미리보기에서는 실제 발급을 하지 않습니다.'));
       }
-      const attempts = ['public', 'restore'].includes(action) ? 2 : 1;
-      for (let attempt = 0; attempt < attempts; attempt++) {
-        try { return await this.send(action, payload); }
-        catch (e) {
-          if (attempt + 1 >= attempts || !['CONNECT', 'TIMEOUT', 'NETWORK'].includes(e.code)) throw e;
-          // Replace an idle failed frame; otherwise share the live frame until
-          // outstanding requests finish. Never interrupt a write to retry a read.
+      const read = readActions.has(action);
+      const key = read ? JSON.stringify([config.endpoint, action, payload]) : null;
+      if (read && inFlightReads.has(key)) return inFlightReads.get(key);
+      const execute = async () => {
+        const attempts = read ? 2 : 1;
+        for (let attempt = 0; attempt < attempts; attempt++) {
+          try { return await this.send(action, payload, read ? (attempt ? 20000 : 12000) : 40000); }
+          catch (e) {
+            if (attempt + 1 >= attempts || !transientErrors.has(e.code)) throw e;
+            // A short pause recovers transient HTTP failures without creating a
+            // second write. Bridge reconnection retains its existing safeguards.
+            if (config.directRequests) await new Promise(resolve => setTimeout(resolve, 600));
+          }
         }
-      }
+      };
+      const result = execute();
+      if (!read) return result;
+      const shared = result.finally(() => { if (inFlightReads.get(key) === shared) inFlightReads.delete(key); });
+      inFlightReads.set(key, shared);
+      return shared;
     }
   }
   window.Jukebox = { TicketAPI, youtubeUrl, uuid };
