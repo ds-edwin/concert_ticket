@@ -13,7 +13,7 @@ window.TICKET_CONFIG = Object.freeze({
   unitPrice: 5000,
   // Fill all three fields with the organizer-confirmed receiving account.
   // Checkout stays disabled until a real account is configured.
-  payment: { bank: '', account: '', holder: '' },
+  payment: { bank: '카카오뱅크', account: '3333-38-7014987', holder: '이병훈' },
   seat: '자유석',
   // Final setlist supplied by the organizer on 2026-10-22. No sheet lookup.
   setlist: [
