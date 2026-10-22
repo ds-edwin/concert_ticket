@@ -11,12 +11,12 @@ function render(detail){
  const order=P.findOrder(current.token),isOwner=order?.tokens.includes(current.token);
  $('ticketChoices').replaceChildren();
  if(isOwner&&order.quantity>1){
-  $('shareDescription').textContent=(order.complete?'구매한 '+order.quantity+'장 중':'발급된 티켓 중')+' 공유할 티켓을 선택하세요. 각 티켓을 한 분씩 보내주세요.';
+  $('shareDescription').textContent=(order.complete?'구매한 '+order.quantity+'장 중':'발급된 티켓 중')+' 각 티켓 링크를 한 분씩 보내주세요. 받는 분이 본인 이름과 연락처 뒤 4자리를 입력합니다.';
   order.tokens.forEach((token,i)=>{
-   if(!P.readTicket(token)?.ticket)return;
+   
    const a=document.createElement('a');a.href=P.ticketUrl(token);
    const cached=P.readTicket(token)?.ticket;
-   a.textContent=(i+1)+'번 티켓'+(cached?.serial?' · No. '+String(cached.serial).padStart(4,'0'):'');
+   a.textContent=(i+1)+'번 티켓'+(cached?.serial?' · No. '+String(cached.serial).padStart(4,'0'):' · 이름 등록하기');
    if(token===current.token){a.className='selected';a.setAttribute('aria-current','page');}
    $('ticketChoices').append(a);
   });
@@ -37,7 +37,8 @@ $('shareTicket').addEventListener('click',async()=>{
  }catch(e){if(e.name!=='AbortError')$('shareStatus').textContent='공유창을 열지 못했어요. 링크 복사를 이용해 주세요.';}
 });
 window.addEventListener('jukebox:ticket',e=>render(e.detail));
-window.addEventListener('jukebox:ticket-missing',()=>{render(null);$('ticketLinkStatus').hidden=false;$('ticketLinkStatus').textContent='발급 기록을 찾지 못했어요. 공유해 준 분에게 확인해 주세요.';});
+window.addEventListener('jukebox:ticket-missing',()=>{if(P.tokenPattern.test(urlToken)){render({token:urlToken});$('registration').hidden=false;}else render(null);});
+window.addEventListener('jukebox:ticket-unclaimed',e=>{render(e.detail);$('registration').hidden=false;});
 window.addEventListener('jukebox:ticket-error',e=>{if(!current){$('ticketLinkStatus').hidden=false;$('ticketLinkStatus').textContent=e.detail||'티켓을 불러오지 못했어요. 아래 내 티켓 다시 확인을 눌러주세요.';}});
 if(urlToken){$('registration').hidden=true;$('ticketLinkStatus').hidden=false;if(!P.tokenPattern.test(urlToken))$('ticketLinkStatus').textContent='올바르지 않은 티켓 링크예요. 공유해 준 분에게 다시 받아주세요.';}
 render(window.Jukebox.currentTicket);

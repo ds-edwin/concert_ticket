@@ -32,7 +32,7 @@
     [['name','name'],['phone','phoneLast4'],['message','message']].forEach(([key,id]) => { $(key+'Error').textContent = errors[key]; $(id).setAttribute('aria-invalid', Boolean(errors[key])); });
     if (Object.values(errors).some(Boolean)) { $(errors.name ? 'name' : errors.phone ? 'phoneLast4' : 'message').focus(); return null; }
     if (!$('consent').checked) { $('formStatus').textContent = '등록 정보 제출 동의에 체크해 주세요.'; $('consent').focus(); return null; }
-    return { name, phoneLast4, message, token: local.token };
+    return { name, phoneLast4, message, messagePublic: true, token: local.token };
   }
   $('message').addEventListener('input', () => {
     const length = count($('message').value.normalize('NFC').trim());
@@ -76,7 +76,7 @@
     }
   }
   $('ticketForm').addEventListener('submit', async event => {
-    event.preventDefault(); if (linkedToken || busy || soldOut) return;
+    event.preventDefault(); if ((linkedToken && !validLinkedToken) || busy || soldOut) return;
     if (restoring) { $('formStatus').textContent = '기존 발급 기록을 확인 중이에요. 잠시 후 다시 눌러 주세요.'; return; }
     $('formStatus').textContent = '';
     const payload = validate(); if (!payload) return;
@@ -160,7 +160,8 @@
       } else if (ticket === null && (issuedTicket || local.ticket)) {
         clearDeletedTicket();
       } else if (linkedToken) {
-        window.dispatchEvent(new CustomEvent('jukebox:ticket-missing'));
+        $('registration').hidden=false;
+        window.dispatchEvent(new CustomEvent('jukebox:ticket-unclaimed', {detail:{token:local.token}}));
       } else if (restoreInteractive) {
         $('restoreStatus').textContent = '현재 서버에서 이 브라우저의 발급 기록을 찾지 못했어요. 발급했던 브라우저에서 다시 확인해 주세요.';
       }

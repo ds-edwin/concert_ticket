@@ -141,5 +141,25 @@ test('deposit origin and lock failures cannot write',()=>{
  assert.equal(httpCall(e,'deposit',p,{pageOrigin:'https://evil.test'}).code,'ORIGIN');
  e.contend();assert.equal(httpCall(e,'deposit',p).code,'BUSY');assert.equal(e.deposits.length,0);
 });
+
+test('guestbook publishes only opted-in content with no author or internal purchase data',()=>{
+ const e=environment();e.call('issue',input({message:'PRIVATE OLD MESSAGE'}));
+ e.call('issue',input({message:'[입금신고·미확인] internal'}));
+ const p=input({name:'PRIVATE AUTHOR',phoneLast4:'9274',message:'<img src=x onerror=alert(1)> 응원해요!',messagePublic:true});
+ assert.equal(e.call('issue',p).ok,true);e.call('issue',p);
+ const result=httpCall(e,'guestbook');assert.equal(result.ok,true);
+ assert.deepEqual(result.data,{messages:[p.message]});assert.equal(e.data.length,4);
+ assert.ok(!JSON.stringify(result).includes('PRIVATE'));assert.ok(!JSON.stringify(result).includes('9274'));
+ assert.equal(httpCall(e,'health').data.guestbook,true);
+ e.data.pop();assert.equal(httpCall(e,'guestbook').data.messages.length,0);
+});
+test('different recipients issue their own names while a shared link issues only once',()=>{
+ const e=environment(),a=input({name:'첫 관객'}),b=input({name:'두 번째 관객'});
+ assert.equal(e.call('restore',{token:a.token}).data,null);
+ assert.equal(e.call('issue',a).data.name,'첫 관객');
+ assert.equal(e.call('issue',b).data.name,'두 번째 관객');
+ assert.equal(e.call('issue',{...a,name:'another visitor'}).data.name,'첫 관객');
+ assert.equal(e.data.length,3);
+});
 let passed=0;for(const [name,fn]of tests){try{fn();passed++;console.log('PASS '+name);}catch(e){console.error('FAIL '+name);console.error(e);process.exitCode=1;}}
 console.log(`${passed}/${tests.length} behavioral checks passed`);

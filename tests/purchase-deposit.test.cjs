@@ -18,12 +18,11 @@ vm.runInContext(source.slice(start,end),context);
 (async()=>{
 await assert.rejects(context.issuePurchase(),/lost deposit/);
 assert.equal(calls.filter(c=>c.action==='issue').length,0);
-await assert.rejects(context.issuePurchase(),/lost issue/);
 await context.issuePurchase();
 const deposits=calls.filter(c=>c.action==='deposit');
-assert.equal(deposits.length,3);assert.equal(new Set(deposits.map(c=>c.payload.orderToken)).size,1);
+assert.equal(deposits.length,2);assert.equal(new Set(deposits.map(c=>c.payload.orderToken)).size,1);
 assert.equal(deposits[0].payload.phoneLast4,'0007');assert.equal(deposits[0].payload.quantity,3);
-assert.equal(tickets.size,3);assert.equal(order.complete,true);assert.equal(redirect,'#ticket='+order.tokens[0]);
-await context.issuePurchase();assert.equal(calls.filter(c=>c.action==='deposit').length,3);
-console.log('PASS deposit-before-issuance, lost-response retries, stable purchase key and three ticket redirect');
+assert.equal(tickets.size,0);assert.equal(calls.filter(c=>c.action==='issue').length,0);assert.equal(order.complete,true);assert.equal(redirect,'#ticket='+order.tokens[0]);
+await context.issuePurchase();assert.equal(calls.filter(c=>c.action==='deposit').length,2);
+console.log('PASS deposit-before-issuance, lost-response retries, stable purchase key and recipient registration redirect');
 })().catch(e=>{console.error(e);process.exitCode=1;});

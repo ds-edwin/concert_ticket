@@ -75,6 +75,7 @@ function bridgeRequest(action, payload, pageOrigin) {
   try {
     if (!isAllowedOrigin_(pageOrigin)) fail_('ORIGIN','등록되지 않은 웹사이트입니다.');
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) fail_('VALIDATION','올바르지 않은 요청입니다.');
+    if (action === 'guestbook') return {ok:true,data:guestbook_()};
     if (action === 'public') return {ok:true,data:publicData_()};
     if (action === 'restore') return {ok:true,data:restore_(payload.token)};
     if (action === 'check') return {ok:true,data:check_(payload.token)};
@@ -137,6 +138,7 @@ function validateInput_(input) {
 }
 function issue_(payload) {
   var input=validateInput_(payload);
+  if(payload.messagePublic===true && input.message)input.message='[방명록] '+input.message;
   var lock=LockService.getScriptLock();
   if(!lock.tryLock(20000))fail_('BUSY','신청이 몰리고 있어요. 잠시 후 다시 눌러 주세요.');
   try {
@@ -189,7 +191,7 @@ function check_(token) {
   }finally{lock.releaseLock();}
 }
 
-var BRIDGE_HTML_ = "<!doctype html>\n<html><head><meta charset=\"utf-8\"><meta name=\"referrer\" content=\"no-referrer\"></head><body>\n<script>\n'use strict';\nconst pageOrigin = <?!= originJson ?>;\nconst channel = <?!= channelJson ?>;\nlet connected = false;\nconst announce = () => window.top.postMessage({type:'jukebox-bridge',channel,ready:true},pageOrigin);\nconst readyTimer = setInterval(() => { if(!connected) announce(); },1000);\nsetTimeout(()=>clearInterval(readyTimer),30000);\nwindow.addEventListener('message',event=>{\n  if(event.origin!==pageOrigin || event.source!==window.top) return;\n  const data=event.data;\n  if(!data || data.channel!==channel) return;\n  if(data.type==='jukebox-connect'){connected=true;clearInterval(readyTimer);return;}\n  if(data.type!=='jukebox-request'||!['public','restore','issue','check','deposit'].includes(data.action)||typeof data.requestId!=='string'||!/^[a-f0-9-]{36}$/i.test(data.requestId))return;\n  const reply=result=>window.top.postMessage({type:'jukebox-bridge',channel,requestId:data.requestId,result},pageOrigin);\n  google.script.run\n    .withSuccessHandler(reply)\n    .withFailureHandler(()=>reply({ok:false,code:'NETWORK',message:'등록 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'}))\n    .bridgeRequest(data.action,data.payload||{},pageOrigin);\n});\nannounce();\n</script>\n</body></html>\n";
+var BRIDGE_HTML_ = "<!doctype html>\n<html><head><meta charset=\"utf-8\"><meta name=\"referrer\" content=\"no-referrer\"></head><body>\n<script>\n'use strict';\nconst pageOrigin = <?!= originJson ?>;\nconst channel = <?!= channelJson ?>;\nlet connected = false;\nconst announce = () => window.top.postMessage({type:'jukebox-bridge',channel,ready:true},pageOrigin);\nconst readyTimer = setInterval(() => { if(!connected) announce(); },1000);\nsetTimeout(()=>clearInterval(readyTimer),30000);\nwindow.addEventListener('message',event=>{\n  if(event.origin!==pageOrigin || event.source!==window.top) return;\n  const data=event.data;\n  if(!data || data.channel!==channel) return;\n  if(data.type==='jukebox-connect'){connected=true;clearInterval(readyTimer);return;}\n  if(data.type!=='jukebox-request'||!['public','restore','issue','check','deposit','guestbook'].includes(data.action)||typeof data.requestId!=='string'||!/^[a-f0-9-]{36}$/i.test(data.requestId))return;\n  const reply=result=>window.top.postMessage({type:'jukebox-bridge',channel,requestId:data.requestId,result},pageOrigin);\n  google.script.run\n    .withSuccessHandler(reply)\n    .withFailureHandler(()=>reply({ok:false,code:'NETWORK',message:'등록 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'}))\n    .bridgeRequest(data.action,data.payload||{},pageOrigin);\n});\nannounce();\n</script>\n</body></html>\n";
 
 /**
  * JUKEBOX direct HTTP transport.
@@ -211,11 +213,11 @@ function doPost(e) {
     if (request.protocol !== 'jukebox-http-v1') fail_('VERSION', '티켓 페이지를 새로 열어 주세요.');
     if (!isAllowedOrigin_(request.pageOrigin)) fail_('ORIGIN', '등록되지 않은 웹사이트입니다.');
     if (request.action === 'health') {
-      result = {ok:true,data:{version:1,depositLedger:true}};
+      result = {ok:true,data:{version:1,depositLedger:true,guestbook:true}};
     } else if (request.action === 'deposit') {
       result = {ok:true,data:recordDeposit_(request.payload)};
     } else {
-      if (['issue','restore','check'].indexOf(request.action) < 0) fail_('ACTION', '지원하지 않는 요청입니다.');
+      if (['issue','restore','check','guestbook'].indexOf(request.action) < 0) fail_('ACTION', '지원하지 않는 요청입니다.');
       result = bridgeRequest(request.action, request.payload, request.pageOrigin);
     }
   } catch (err) {
@@ -265,4 +267,10 @@ function recordDeposit_(payload) {
     SpreadsheetApp.flush();
     return {recorded:true,submittedAt:now.toISOString(),quantity:quantity};
   } finally {lock.releaseLock();}
+}
+
+/** Only explicitly public messages; never return attendee identifiers. */
+function guestbook_() {
+  var prefix='[방명록] ';
+  return {messages:rows_(registration_()).map(function(row){return String(row[4]||'');}).filter(function(message){return message.indexOf(prefix)===0 && message.slice(prefix.length).trim();}).map(function(message){return message.slice(prefix.length);})};
 }

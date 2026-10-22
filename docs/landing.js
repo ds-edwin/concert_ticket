@@ -67,18 +67,7 @@ async function issuePurchase(){
   throw e;
  }
  if(deposit?.recorded!==true||deposit.quantity!==order.quantity)throw new Error('입금 내역 저장 결과를 확인하지 못했어요.');
- // Tokens are durable before any network write; reload/retry cannot issue duplicates.
- for(let i=0;i<order.quantity;i++){
-  $('paidButton').textContent='티켓 준비 중 '+(i+1)+' / '+order.quantity;
-  $('paymentStatus').textContent='발급 결과를 확인하고 있어요. 잠시만 기다려 주세요.';
-  const token=order.tokens[i];
-  let ticket=P.readTicket(token)?.ticket;
-  if(!ticket){
-   ticket=await api.issue({token,name:payer.name,phoneLast4:payer.phoneLast4,message:'[입금신고·미확인] '+order.id.slice(0,8)+' / '+(i+1)+'·'+order.quantity+'장 / 총 '+money(order.quantity*price)},()=>{$('paymentStatus').textContent='응답이 늦어 기존 발급 기록을 확인하고 있어요.';});
-   if(!ticket||!Number.isInteger(ticket.serial)||ticket.serial<1||typeof ticket.name!=='string')throw new Error('발급 응답을 확인하지 못했어요. 같은 화면에서 다시 확인해 주세요.');
-   P.saveTicket(token,ticket);
-  }
- }
+ // Each recipient enters their own details on their individual ticket link.
  order.complete=true;P.writeOrder(order);
  try{sessionStorage.removeItem(draftKey);}catch{}
  location.assign(P.ticketUrl(order.tokens[0]));
@@ -93,7 +82,7 @@ $('paidButton').addEventListener('click',async()=>{
   if(navigator.locks)await navigator.locks.request(P.orderKey,issuePurchase);else await issuePurchase();
  }catch(e){
   $('paymentStatus').textContent=(e.message||'티켓을 준비하지 못했어요.')+' 다시 누르면 같은 구매를 이어서 확인합니다.';
-  $('paidButton').textContent='발급 다시 확인';
+  $('paidButton').textContent='입금 신고 다시 확인';
   const first=order?.tokens.find(token=>P.readTicket(token)?.ticket);
   if(first){$('partialTickets').href=P.ticketUrl(first);$('partialTickets').hidden=false;}
  }finally{setBusy(false);}
