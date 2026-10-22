@@ -10,6 +10,10 @@ window.TICKET_CONFIG = Object.freeze({
   time: '오후 6:00',
   venue: '논현 재즈클럽 그루브',
   price: '5,000원',
+  unitPrice: 5000,
+  // Fill all three fields with the organizer-confirmed receiving account.
+  // Checkout stays disabled until a real account is configured.
+  payment: { bank: '', account: '', holder: '' },
   seat: '자유석',
   // Final setlist supplied by the organizer on 2026-10-22. No sheet lookup.
   setlist: [

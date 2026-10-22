@@ -4,7 +4,10 @@
   const config = window.TICKET_CONFIG;
   const api = new window.Jukebox.TicketAPI();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const storageKey = `jukebox:${config.eventId}:${api.preview ? 'preview' : config.endpoint}`;
+  const linkedToken = new URLSearchParams(location.hash.slice(1)).get('ticket');
+  const validLinkedToken = typeof linkedToken === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(linkedToken);
+  if (linkedToken) document.documentElement.setAttribute('data-linked-ticket', 'true');
+  const storageKey = `jukebox:${config.eventId}:${api.preview ? 'preview' : config.endpoint}` + (validLinkedToken ? ':ticket:' + linkedToken : linkedToken ? ':invalid-link' : '');
   let issuedTicket = null, busy = false, soldOut = false, restoring = false, toastTimer;
   let restoreRequest = null, restoreInteractive = false;
   let cutArmed = false, cutGesture = null, checkRevision = 0;
@@ -13,6 +16,7 @@
   let local = readState() || {};
   // A random request token is retained before sending. Never store phone/message.
   if (!local.token || !/^[a-f0-9-]{36}$/.test(local.token)) local = { token: window.Jukebox.uuid() };
+  if (validLinkedToken) local.token = linkedToken;
   const persistent = saveState(local);
   function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 4500); }
   function count(value) { return Array.from(value).length; }
@@ -41,6 +45,8 @@
   function showTicket(ticket, celebrate = false) {
     if (!ticket || typeof ticket.name !== 'string' || (!ticket.preview && (!Number.isInteger(ticket.serial) || ticket.serial < 1 || ticket.serial > 1000))) throw new Error('잘못된 발급 응답입니다.');
     issuedTicket = ticket;
+    window.Jukebox.currentTicket = { token: local.token, ticket };
+    window.dispatchEvent(new CustomEvent('jukebox:ticket', { detail: window.Jukebox.currentTicket }));
     if (ticket.checked === true) delete local.pendingCheck;
     $('ticket').classList.toggle('checked', ticket.checked === true || local.pendingCheck === true);
     $('managerButton').hidden = false;
@@ -59,7 +65,7 @@
     $('issuedSection').hidden = false;
     $('issuedEyebrow').textContent = ticket.preview ? 'DESIGN PREVIEW' : "IT'S YOURS";
     $('issuedTitle').textContent = ticket.preview ? `${ticket.name}님의 샘플 티켓` : `${ticket.name}님의 티켓이 준비됐어요.`;
-    $('issuedDetail').textContent = ticket.preview ? '디자인 체험용이며 실제 번호와 등록 기록은 생성되지 않습니다.' : `${serial} · 같은 브라우저에서 다시 열면 이 티켓을 확인할 수 있어요.\n이미지를 저장해 간직하세요. 발급은 결제 확인과 별개입니다.`;
+    $('issuedDetail').textContent = ticket.preview ? '디자인 체험용이며 실제 번호와 등록 기록은 생성되지 않습니다.' : `${serial} · 같은 브라우저에서 다시 열면 이 티켓을 확인할 수 있어요.\n이미지를 저장하거나 아래에서 티켓 링크를 공유할 수 있어요.`;
     syncStub();
     $('phoneLast4').value = ''; $('message').value = '';
     if (celebrate) { rotation.y.target = Math.round(rotation.y.current / 360) * 360; rotation.x.target = 0; rotation.z.target = -1; animate(); if (!reduced) confetti(); }
@@ -70,7 +76,7 @@
     }
   }
   $('ticketForm').addEventListener('submit', async event => {
-    event.preventDefault(); if (busy || soldOut) return;
+    event.preventDefault(); if (linkedToken || busy || soldOut) return;
     if (restoring) { $('formStatus').textContent = '기존 발급 기록을 확인 중이에요. 잠시 후 다시 눌러 주세요.'; return; }
     $('formStatus').textContent = '';
     const payload = validate(); if (!payload) return;
@@ -91,6 +97,8 @@
   // Only a successful, explicit missing-record response may clear a cached ticket.
   function clearDeletedTicket() {
     issuedTicket = null;
+    window.Jukebox.currentTicket = null;
+    window.dispatchEvent(new CustomEvent('jukebox:ticket-missing'));
     checkRevision++;
     delete local.pendingCheck;
     setCutArmed(false);
@@ -124,6 +132,10 @@
     $('restoreStatus').textContent = '발급 기록이 삭제되어 초기 화면으로 돌아왔어요. 다시 티켓을 발급받을 수 있습니다.';
   }
   function restoreTicket(silent = false) {
+    if (linkedToken && !validLinkedToken) {
+      window.dispatchEvent(new CustomEvent('jukebox:ticket-error', {detail:'올바르지 않은 티켓 링크예요. 공유해 준 분에게 다시 받아주세요.'}));
+      return Promise.resolve();
+    }
     if (api.preview) return Promise.resolve();
     if (busy || checking) {
       if (!silent) $('restoreStatus').textContent = '티켓을 처리하고 있어요. 완료 후 다시 확인해 주세요.';
@@ -147,10 +159,13 @@
         if (restoreInteractive) $('restoreStatus').textContent = `기존 티켓 No. ${String(ticket.serial).padStart(4,'0')}을 불러왔어요.`;
       } else if (ticket === null && (issuedTicket || local.ticket)) {
         clearDeletedTicket();
+      } else if (linkedToken) {
+        window.dispatchEvent(new CustomEvent('jukebox:ticket-missing'));
       } else if (restoreInteractive) {
         $('restoreStatus').textContent = '현재 서버에서 이 브라우저의 발급 기록을 찾지 못했어요. 발급했던 브라우저에서 다시 확인해 주세요.';
       }
     }).catch(e => {
+      if (linkedToken) window.dispatchEvent(new CustomEvent('jukebox:ticket-error', {detail:e.message}));
       if (restoreInteractive) $('restoreStatus').textContent = e.message || '기존 티켓을 확인하지 못했어요. 잠시 후 다시 눌러 주세요.';
     }).finally(() => {
       restoring = false;
