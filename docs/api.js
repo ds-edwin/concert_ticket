@@ -165,7 +165,7 @@
         if (!response.ok) throw error(response.status === 429 ? 'BUSY' : 'NETWORK', '서버 연결이 늦어지고 있어요. 잠시 후 다시 확인해 주세요.');
         let result;
         try { result = JSON.parse(await response.text()); }
-        catch { throw error('SERVER_UPDATE', '발급 서버에 연결 업데이트가 필요합니다.'); }
+        catch { throw error('RESPONSE', '서버 응답을 읽지 못했어요. 잠시 후 다시 확인해 주세요.'); }
         if (result?.protocol !== 'jukebox-http-v1' || result.requestId !== requestId) {
           throw error('RESPONSE', '발급 서버의 응답을 확인하지 못했어요.');
         }

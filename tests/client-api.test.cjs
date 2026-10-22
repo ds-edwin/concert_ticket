@@ -199,8 +199,9 @@ test('a direct response for another request cannot confirm a ticket',async()=>{
 
 test('a malformed HTTP endpoint fails clearly without falling into a cookie-dependent iframe',async()=>{
   const h=harness({directRequests:true,fetch:async()=>({ok:true,text:async()=>'<html>doPost not found</html>'})});
-  const result=await h.api.request('restore',{token:'retained-token'}).catch(e=>e);
-  assert.equal(result.code,'SERVER_UPDATE');
+  const pending=h.api.request('restore',{token:'retained-token'}).catch(e=>e);
+  await flush();h.fire(600);
+  assert.equal((await pending).code,'RESPONSE');
   assert.equal(h.frames.length,0);
 });
 
@@ -258,4 +259,10 @@ test('a server error after issuance can recover an already committed ticket',asy
   }});
   assert.equal((await h.api.issue({token:'retained-token'})).serial,17);
   assert.deepEqual(actions,['issue','restore']);
+});
+
+test('a temporary HTML response retries without asking for a server redeployment',async()=>{
+ let calls=0;const h=harness({directRequests:true,fetch:async(url,options)=>++calls===1?{ok:true,text:async()=>'<html>Temporarily unavailable</html>'}:httpReply(options,{messages:['recovered']})});
+ const result=h.api.request('guestbook');await flush();h.fire(600);
+ assert.equal((await result).messages[0],'recovered');assert.equal(calls,2);
 });
