@@ -41,17 +41,16 @@ button,input{font:inherit}button,a,input{-webkit-tap-highlight-color:transparent
 .setlist-trigger svg{width:15px;height:15px}.setlist-trigger:hover{background:#97e3cf1c;border-color:#97e3cf80}
 .vinyl-trigger{display:block;width:86px;height:86px;padding:0;margin:0 auto 22px;border:0;border-radius:50%;background:transparent}
 .vinyl-trigger:hover .vinyl{border-color:#97e3cf88}
-body.setlist-open{overflow:hidden}
-.setlist-dialog{width:min(440px,calc(100% - 32px));max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);padding:24px 24px 12px;border:1px solid #608277;border-radius:18px;color:#f6f1e5;background:radial-gradient(ellipse at 50% 0%,#2a3e3b99,transparent 70%),#111b1c;box-shadow:0 24px 90px #0009;overflow:hidden}
-.setlist-dialog[open]{display:flex;flex-direction:column}.setlist-dialog::backdrop{background:#090d0dcc;backdrop-filter:blur(5px)}
+.kiosk-screen.is-setlist-open>#kioskContent{visibility:hidden}
+.setlist-panel{position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;padding:inherit;overflow:hidden}
 .setlist-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-shrink:0}
-.setlist-heading p{margin:0 0 7px;color:#95cbb9;font-size:9px;letter-spacing:1.8px}.setlist-heading h2{margin:0;font-size:25px;letter-spacing:-.8px;font-weight:600}
+.setlist-heading p{margin:0 0 7px;color:#95cbb9;font-size:9px;letter-spacing:1.8px}.setlist-heading h2{margin:0;font-size:23px;letter-spacing:-.8px;font-weight:600}
 .setlist-close{display:grid;place-items:center;width:44px;height:44px;flex-shrink:0;padding:10px;border:1px solid #97e3cf33;border-radius:50%;background:#97e3cf0a;color:var(--cream)}
 .setlist-close svg{width:22px;height:22px}.setlist-close:hover{background:#97e3cf20}
 .setlist-note{flex-shrink:0;margin:15px 0 12px;font-size:11px;line-height:1.6;color:#adbdb4}
-.setlist-tracks{list-style:none;margin:0;padding:0 5px 4px 0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#557368 transparent}
-.setlist-track{display:flex;align-items:center;gap:12px;min-height:62px;padding:10px 0;border-top:1px solid #97e3cf1c}
-.setlist-number{width:21px;flex-shrink:0;font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.6px;color:#85af9f}
+.setlist-tracks{flex:1;min-height:0;list-style:none;margin:0;padding:0 5px 4px 0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#557368 transparent}
+.setlist-track{display:flex;align-items:center;gap:8px;min-height:56px;padding:6px 0;border-top:1px solid #97e3cf1c}
+.setlist-number{width:18px;flex-shrink:0;font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.6px;color:#85af9f}
 .setlist-song{min-width:0;flex:1}.setlist-song strong{display:block;font-size:14px;line-height:1.4;font-weight:550;overflow-wrap:anywhere}.setlist-song small{display:block;margin-top:4px;color:#a2b4aa;font-size:11px;line-height:1.4}
-.setlist-youtube{display:grid;place-items:center;width:44px;height:44px;flex-shrink:0;color:var(--mint);border-radius:50%;text-decoration:none}.setlist-youtube svg{width:22px;height:22px}.setlist-youtube:hover{background:#97e3cf18}
-@media(max-width:360px){.setlist-dialog{padding:20px 16px 10px}.setlist-track{gap:9px}.setlist-song strong{font-size:13px}}
+.setlist-youtube{display:grid;place-items:center;width:36px;height:44px;flex-shrink:0;color:var(--mint);border-radius:50%;text-decoration:none}.setlist-youtube svg{width:22px;height:22px}.setlist-youtube:hover{background:#97e3cf18}
+@media(max-width:420px){.setlist-heading p{font-size:8px;letter-spacing:1.2px}.setlist-song strong{font-size:13px}.setlist-song small{font-size:10px}}

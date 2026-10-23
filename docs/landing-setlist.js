@@ -1,8 +1,10 @@
 (function(){
 'use strict';
-const dialog=document.getElementById('setlistDialog');
+const panel=document.getElementById('setlistPanel');
+const content=document.getElementById('kioskContent');
+const screen=panel?.closest('.kiosk-screen');
 const list=document.getElementById('landingTracks');
-if(!dialog||!list)return;
+if(!panel||!content||!screen||!list)return;
 const icon='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="1" y="5" width="22" height="14" rx="4" fill="currentColor"/><path fill="#111b1c" d="m9.6 15.8 6.3-3.8-6.3-3.8Z"/></svg>';
 const tracks=window.TICKET_CONFIG?.setlist||[];
 tracks.forEach((track,index)=>{
@@ -18,20 +20,32 @@ tracks.forEach((track,index)=>{
  }
  list.append(row);
 });
-function openSetlist(){
- if(dialog.open)return;
- dialog.showModal();
- document.body.classList.add('setlist-open');
+const triggers=[document.getElementById('setlistButton'),document.getElementById('vinylButton')];
+const closeButton=document.getElementById('closeSetlist');
+let returnFocus=null;
+function openSetlist(event){
+ if(!panel.hidden)return;
+ returnFocus=event.currentTarget;
+ panel.hidden=false;
+ screen.classList.add('is-setlist-open');
+ closeButton.focus({preventScroll:true});
+ content.inert=true;
+ content.setAttribute('aria-hidden','true');
+ triggers.forEach(button=>button.setAttribute('aria-expanded','true'));
  list.scrollTop=0;
 }
-document.getElementById('setlistButton').addEventListener('click',openSetlist);
-document.getElementById('vinylButton').addEventListener('click',openSetlist);
-document.getElementById('closeSetlist').addEventListener('click',()=>dialog.close());
-dialog.addEventListener('close',()=>document.body.classList.remove('setlist-open'));
-// A scroll starting inside the dialog must not become a backdrop dismissal.
-let backdropStart=false;
-function outside(event){const box=dialog.getBoundingClientRect();return event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;}
-dialog.addEventListener('pointerdown',event=>{backdropStart=event.target===dialog&&outside(event);});
-dialog.addEventListener('pointercancel',()=>{backdropStart=false;});
-dialog.addEventListener('click',event=>{if(backdropStart&&event.target===dialog&&outside(event))dialog.close();backdropStart=false;});
+function closeSetlist(){
+ if(panel.hidden)return;
+ content.inert=false;
+ content.removeAttribute('aria-hidden');
+ screen.classList.remove('is-setlist-open');
+ panel.hidden=true;
+ triggers.forEach(button=>button.setAttribute('aria-expanded','false'));
+ returnFocus?.focus({preventScroll:true});
+}
+triggers.forEach(button=>button.addEventListener('click',openSetlist));
+closeButton.addEventListener('click',closeSetlist);
+panel.addEventListener('keydown',event=>{
+ if(event.key==='Escape'){event.preventDefault();closeSetlist();}
+});
 })();
