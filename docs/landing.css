@@ -48,8 +48,8 @@ button,input{font:inherit}button,a,input{-webkit-tap-highlight-color:transparent
 .tonearm-headshell{position:absolute;left:0;top:-3px;width:12px;height:6px;border:1px solid #76836a;border-radius:1px;background:repeating-linear-gradient(90deg,transparent 0 3px,#111b16 3px 4px),linear-gradient(#c5b98f,#343f33 35%,#131d16)}
 .tonearm-stylus{position:absolute;left:1px;top:1px;width:1px;height:3px;background:#d7d0b0;border-radius:1px}
 .tonearm-contact{position:absolute;left:.5px;top:2px;width:2px;height:2px;border-radius:50%;background:#eee0b6}
-/* One second up and down, followed by three seconds at rest. */
-@keyframes tonearm-bob{0%,37.5%,62.5%,100%{transform:rotate(0deg)}50%{transform:rotate(.55deg)}}
+/* Half a second up and down, followed by 3.5 seconds at rest. */
+@keyframes tonearm-bob{0%,43.75%,56.25%,100%{transform:rotate(0deg)}50%{transform:rotate(.55deg)}}
 .kiosk-screen.is-setlist-open>#kioskContent{visibility:hidden}
 .setlist-panel{position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;padding:inherit;overflow:hidden}
 .setlist-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-shrink:0}
