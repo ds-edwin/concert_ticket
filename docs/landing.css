@@ -75,10 +75,13 @@ button,input{font:inherit}button,a,input{-webkit-tap-highlight-color:transparent
  .screen-meta{gap:4px}.setlist-trigger{min-height:32px;font-size:10px;padding:0 9px}
  .screen-page{flex:none;padding-top:12px}
  .screen-page h1,.screen-page h2{font-size:clamp(24px,4svh,30px);line-height:1.24;letter-spacing:-.9px;margin:6px 0 8px}
- .welcome-page{margin:auto 0;padding-top:4px}
+ .welcome-page{--lp-lift:-40px;--title-lift:-12px;--details-drop:2px;--action-drop:10px;margin:auto 0;padding-top:4px}
+ .welcome-page h1{position:relative;top:var(--title-lift)}
+ .welcome-page .event-info{position:relative;top:var(--details-drop)}
+ .welcome-page #buyButton,.welcome-page .welcome-price,.welcome-page .kiosk-link{position:relative;top:var(--action-drop)}
  .screen-page .screen-eyebrow,.screen-bottom{display:none}
  .vinyl,.vinyl-trigger{width:clamp(64px,12svh,86px);height:clamp(64px,12svh,86px)}
- .vinyl-trigger{margin:0 auto 4px}.vinyl>.vinyl-label{width:44%;height:44%}.vinyl span{font-size:clamp(8px,1.3svh,10px)}
+ .vinyl-trigger{position:relative;top:var(--lp-lift);margin:0 auto 4px}.vinyl>.vinyl-label{width:44%;height:44%}.vinyl span{font-size:clamp(8px,1.3svh,10px)}
  .event-info{font-size:11px;line-height:1.65;margin:0 0 10px}
  .kiosk-primary{min-height:44px;padding:10px 14px;font-size:13px;line-height:1.25}
  .kiosk-primary>span{font-size:20px;line-height:1}
@@ -103,7 +106,13 @@ button,input{font:inherit}button,a,input{-webkit-tap-highlight-color:transparent
  .setlist-heading p{font-size:8px;letter-spacing:1.2px}.setlist-heading h2{font-size:21px}
  .setlist-note{margin:10px 0;font-size:10px}.setlist-song strong{font-size:13px}.setlist-song small{font-size:10px}
 }
+@media(max-width:600px) and (orientation:portrait) and (max-height:680px){
+ .welcome-page:where(:has(#continueTicket:not([hidden]))){--lp-lift:-24px}
+}
 @media(max-width:600px) and (orientation:portrait) and (max-height:640px){
+ .welcome-page{--lp-lift:-16px;--title-lift:-6px;--details-drop:1px;--action-drop:6px}
  .lobby{gap:0}.lobby-kicker,.lobby-footer{display:none}
  .jukebox-machine{width:min(100%,410px,calc((100svh - var(--edge-top) - var(--edge-bottom))*.56))}
 }
+
+@media(max-width:360px) and (orientation:portrait){.welcome-page{--lp-lift:-16px;--title-lift:-6px;--details-drop:1px;--action-drop:6px}}
