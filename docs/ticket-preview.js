@@ -1,6 +1,13 @@
 (function(){
 'use strict';
 const ticket=document.getElementById('ticket'),area=document.getElementById('previewRotateArea');
+// Anchor the control to the unrotated card's lower edge, including capped desktop sizes.
+const controls=document.querySelector('.preview-controls'),viewer=document.querySelector('.preview-viewer');
+function positionFlip(){
+ controls.style.bottom=Math.max(0,viewer.clientHeight-area.offsetTop-ticket.offsetTop-ticket.offsetHeight+2)+'px';
+}
+const previewResize=new ResizeObserver(positionFlip);
+previewResize.observe(area);previewResize.observe(ticket);positionFlip();
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let angle=-8,target=-8,raf=0,gesture=null;
 function draw(){

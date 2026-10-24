@@ -6,7 +6,7 @@ body{color:#f4e9cd}.preview-main{height:100svh;max-width:none;padding:0 2px;marg
 .preview-viewer .ticket{width:min(94%,calc((100svh - 16px)*.6015));max-width:324px;touch-action:none;transform:rotateX(0deg) rotateY(-8deg);aspect-ratio:1449/2409}
 .preview-viewer .ticket>.ticket-front,.preview-viewer .ticket>.ticket-back,.preview-viewer .ticket>.ticket-edge{clip-path:none}
 .preview-viewer .ticket-face,.preview-viewer .ticket-edge{border-radius:8px}
-.preview-controls{position:absolute;top:0;right:0;z-index:5}
+.preview-controls{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:5}
 .preview-controls button{display:grid;place-items:center;width:44px;height:44px;padding:5px;border:0;border-radius:50%;background:transparent;color:#97e3cf;cursor:pointer}
 .preview-controls svg{width:34px;height:34px;filter:drop-shadow(0 2px 3px #0005)}
 .preview-controls button:hover svg{filter:drop-shadow(0 0 4px #97e3cf55)}
