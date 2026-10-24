@@ -40,7 +40,7 @@ function openPanel(view,source){
  if(view.mount){
   const frame=document.createElement('iframe');
   frame.title='회전 가능한 티켓 미리보기';
-  frame.src='./ticket-preview.html?v=20261024-preview999';
+  frame.src='./ticket-preview.html?v=20261024-largerpreview';
   view.mount.replaceChildren(frame);
  }
  screen.classList.add('is-panel-open');

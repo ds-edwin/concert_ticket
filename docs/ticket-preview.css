@@ -1,12 +1,13 @@
 :root{color-scheme:dark;background:transparent}
 html,body{height:100%;margin:0;background:transparent;overflow:hidden;overscroll-behavior:none}
 body{color:#f4e9cd}.preview-main{height:100svh;max-width:none;padding:0 2px;margin:0}
-.preview-viewer{height:100%;min-height:0;display:flex;flex-direction:column;margin:0;padding:0;user-select:none;-webkit-user-select:none}
-.preview-viewer .perspective{flex:1;min-height:0;padding:10px 0;perspective:1000px;touch-action:none;cursor:grab}
-.preview-viewer .ticket{width:min(88%,calc((100svh - 64px)*.6015));max-width:270px;touch-action:none;transform:rotateX(3deg) rotateY(-8deg);aspect-ratio:1449/2409}
+.preview-viewer{position:relative;height:100%;min-height:0;display:flex;flex-direction:column;margin:0;padding:0;user-select:none;-webkit-user-select:none}
+.preview-viewer .perspective{flex:1;min-height:0;padding:8px 0;perspective:6000px;touch-action:none;cursor:grab}
+.preview-viewer .ticket{width:min(94%,calc((100svh - 16px)*.6015));max-width:324px;touch-action:none;transform:rotateX(0deg) rotateY(-8deg);aspect-ratio:1449/2409}
 .preview-viewer .ticket>.ticket-front,.preview-viewer .ticket>.ticket-back,.preview-viewer .ticket>.ticket-edge{clip-path:none}
 .preview-viewer .ticket-face,.preview-viewer .ticket-edge{border-radius:8px}
-.preview-controls{flex:none;display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:36px;margin:0 0 4px}
-.preview-controls p{font-size:10px;line-height:1.6;color:#a2b4aa;margin:0}
-.preview-controls button{border:1px solid #97e3cf44;background:transparent;border-radius:20px;color:#97e3cf;font-size:10px;min-height:36px;padding:5px 10px}
+.preview-controls{position:absolute;top:0;right:0;z-index:5}
+.preview-controls button{display:grid;place-items:center;width:44px;height:44px;padding:5px;border:0;border-radius:50%;background:transparent;color:#97e3cf;cursor:pointer}
+.preview-controls svg{width:34px;height:34px;filter:drop-shadow(0 2px 3px #0005)}
+.preview-controls button:hover svg{filter:drop-shadow(0 0 4px #97e3cf55)}
 button:focus-visible,.ticket:focus-visible{outline:2px solid #97e3cf;outline-offset:1px}

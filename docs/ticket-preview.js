@@ -6,7 +6,7 @@ let angle=-8,target=-8,raf=0,gesture=null;
 function draw(){
  angle=reduced?target:angle+(target-angle)*.22;
  if(Math.abs(target-angle)<.05)angle=target;
- ticket.style.transform='rotateX(3deg) rotateY('+angle+'deg)';
+ ticket.style.transform='rotateX(0deg) rotateY('+angle+'deg)';
  const back=Math.cos(angle*Math.PI/180)<0;
  ticket.querySelector('.ticket-front').setAttribute('aria-hidden',String(back));
  ticket.querySelector('.ticket-back').setAttribute('aria-hidden',String(!back));
