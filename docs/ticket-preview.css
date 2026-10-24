@@ -1,0 +1,18 @@
+:root{color-scheme:dark;background:transparent}
+html,body{background:transparent;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:#557368 transparent}
+body{color:#f4e9cd}.preview-main{max-width:none;padding:0 2px;margin:0}
+.preview-viewer{margin:0;padding:0;user-select:none;-webkit-user-select:none}
+.preview-viewer .perspective{min-height:0;padding:12px 0 8px;perspective:1000px;touch-action:pan-y pinch-zoom;cursor:grab}
+.preview-viewer .ticket{width:min(88%,max(150px,calc((100svh - 78px)*.6015)));max-width:270px;touch-action:pan-y pinch-zoom;transform:rotateX(3deg) rotateY(-8deg);aspect-ratio:1449/2409}
+.preview-viewer .ticket>.ticket-front,.preview-viewer .ticket>.ticket-back,.preview-viewer .ticket>.ticket-edge{clip-path:none}
+.preview-viewer .ticket-face,.preview-viewer .ticket-edge{border-radius:8px}
+.preview-controls{display:flex;align-items:center;justify-content:space-between;gap:5px;margin:0 0 16px}
+.preview-controls p{font-size:9px;line-height:1.6;color:#a2b4aa;margin:0}
+.preview-controls button,#previewRetry{border:1px solid #97e3cf44;background:transparent;border-radius:20px;color:#97e3cf;font-size:10px;min-height:36px;padding:5px 10px}
+.preview-guestbook{border-top:1px solid #97e3cf33;padding-top:16px;padding-bottom:18px}
+.preview-guestbook h2{font-size:16px;margin:0 0 10px}
+#previewMessages{list-style:none;padding:0;margin:0}
+#previewMessages li{font-size:12px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;padding:7px 0;color:#e8e8dd}
+#previewMessagesStatus{font-size:10px;color:#a2b4aa;line-height:1.7}
+#previewMessagesStatus:empty{display:none}
+button:focus-visible,.ticket:focus-visible{outline:2px solid #97e3cf;outline-offset:1px}
