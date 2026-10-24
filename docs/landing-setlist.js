@@ -20,32 +20,42 @@ tracks.forEach((track,index)=>{
  }
  list.append(row);
 });
-const triggers=[document.getElementById('setlistButton'),document.getElementById('vinylButton')];
-const closeButton=document.getElementById('closeSetlist');
-let returnFocus=null;
-function openSetlist(event){
- if(!panel.hidden)return;
- returnFocus=event.currentTarget;
- panel.hidden=false;
- screen.classList.add('is-setlist-open');
- closeButton.focus({preventScroll:true});
+// Both detail views stay inside the kiosk and preserve the current purchase step.
+const views=[
+ {panel,triggers:[document.getElementById('setlistButton'),document.getElementById('vinylButton')],close:document.getElementById('closeSetlist'),scroll:list},
+ {panel:document.getElementById('lineupPanel'),triggers:[document.getElementById('lineupButton')],close:document.getElementById('closeLineup'),scroll:document.getElementById('landingLineup')}
+].filter(view=>view.panel&&view.close&&view.triggers.every(Boolean));
+let active=null,returnFocus=null;
+function openPanel(view,source){
+ if(active===view)return;
+ if(active){
+  active.panel.hidden=true;
+  active.triggers.forEach(button=>button.setAttribute('aria-expanded','false'));
+ }
+ active=view;returnFocus=source;
+ view.panel.hidden=false;
+ screen.classList.add('is-panel-open');
+ view.close.focus({preventScroll:true});
  content.inert=true;
  content.setAttribute('aria-hidden','true');
- triggers.forEach(button=>button.setAttribute('aria-expanded','true'));
- list.scrollTop=0;
+ view.triggers.forEach(button=>button.setAttribute('aria-expanded','true'));
+ if(view.scroll)view.scroll.scrollTop=0;
 }
-function closeSetlist(){
- if(panel.hidden)return;
+function closePanel(){
+ if(!active)return;
  content.inert=false;
  content.removeAttribute('aria-hidden');
- screen.classList.remove('is-setlist-open');
- panel.hidden=true;
- triggers.forEach(button=>button.setAttribute('aria-expanded','false'));
+ screen.classList.remove('is-panel-open');
+ active.panel.hidden=true;
+ active.triggers.forEach(button=>button.setAttribute('aria-expanded','false'));
+ active=null;
  returnFocus?.focus({preventScroll:true});
 }
-triggers.forEach(button=>button.addEventListener('click',openSetlist));
-closeButton.addEventListener('click',closeSetlist);
-panel.addEventListener('keydown',event=>{
- if(event.key==='Escape'){event.preventDefault();closeSetlist();}
+views.forEach(view=>{
+ view.triggers.forEach(button=>button.addEventListener('click',event=>openPanel(view,event.currentTarget)));
+ view.close.addEventListener('click',closePanel);
+ view.panel.addEventListener('keydown',event=>{
+  if(event.key==='Escape'){event.preventDefault();closePanel();}
+ });
 });
 })();

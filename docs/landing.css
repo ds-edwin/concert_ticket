@@ -37,6 +37,7 @@ button,input{font:inherit}button,a,input{-webkit-tap-highlight-color:transparent
 
 /* Both entry points use the ticket page's shared setlist. */
 .screen-meta{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.screen-meta-left{align-items:flex-start}
 .setlist-trigger{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:36px;padding:0 10px;border:1px solid #97e3cf40;border-radius:20px;background:#97e3cf0a;color:var(--mint);font-size:11px;letter-spacing:0;line-height:1}
 .setlist-trigger svg{width:15px;height:15px}.setlist-trigger:hover{background:#97e3cf1c;border-color:#97e3cf80}
 .vinyl-trigger{position:relative;display:block;width:86px;height:86px;padding:0;margin:0 auto 22px;border:0;border-radius:50%;background:transparent}
@@ -50,8 +51,8 @@ button,input{font:inherit}button,a,input{-webkit-tap-highlight-color:transparent
 .tonearm-contact{position:absolute;left:.5px;top:2px;width:2px;height:2px;border-radius:50%;background:#eee0b6}
 /* Half a second up and down, followed by 3.5 seconds at rest. */
 @keyframes tonearm-bob{0%,43.75%,56.25%,100%{transform:rotate(0deg)}50%{transform:rotate(.55deg)}}
-.kiosk-screen.is-setlist-open>#kioskContent{visibility:hidden}
-.setlist-panel{position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;padding:inherit;overflow:hidden}
+.kiosk-screen.is-panel-open>#kioskContent{visibility:hidden}
+.kiosk-panel{position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;padding:inherit;overflow:hidden}
 .setlist-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-shrink:0}
 .setlist-heading p{margin:0 0 7px;color:#95cbb9;font-size:9px;letter-spacing:1.8px}.setlist-heading h2{margin:0;font-size:23px;letter-spacing:-.8px;font-weight:600}
 .setlist-close{display:grid;place-items:center;width:44px;height:44px;flex-shrink:0;padding:10px;border:1px solid #97e3cf33;border-radius:50%;background:#97e3cf0a;color:var(--cream)}
@@ -62,6 +63,11 @@ button,input{font:inherit}button,a,input{-webkit-tap-highlight-color:transparent
 .setlist-number{width:18px;flex-shrink:0;font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.6px;color:#85af9f}
 .setlist-song{min-width:0;flex:1}.setlist-song strong{display:block;font-size:14px;line-height:1.4;font-weight:550;overflow-wrap:anywhere}.setlist-song small{display:block;margin-top:4px;color:#a2b4aa;font-size:11px;line-height:1.4}
 .setlist-youtube{display:grid;place-items:center;width:36px;height:44px;flex-shrink:0;color:var(--mint);border-radius:50%;text-decoration:none}.setlist-youtube svg{width:22px;height:22px}.setlist-youtube:hover{background:#97e3cf18}
+.lineup-roster{flex:1;min-height:0;margin:16px 0 0;padding:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#557368 transparent}
+.lineup-roster>div{display:grid;grid-template-columns:68px minmax(0,1fr);gap:12px;align-items:baseline;padding:12px 0;border-top:1px solid #97e3cf26}
+.lineup-roster dt{font-size:11px;font-weight:500;line-height:1.6;letter-spacing:.6px;color:var(--mint)}
+.lineup-roster dd{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;margin:0;font-size:14px;line-height:1.6;color:var(--cream)}
+.lineup-roster dd span{white-space:nowrap}
 @media(max-width:420px){.setlist-heading p{font-size:8px;letter-spacing:1.2px}.setlist-song strong{font-size:13px}.setlist-song small{font-size:10px}}
 
 /* Fit the portrait landing to the small viewport, including browser chrome.
@@ -114,6 +120,8 @@ button,input{font:inherit}button,a,input{-webkit-tap-highlight-color:transparent
  .speaker-grille{width:17%;height:20px}.coin-slot{height:23px;width:17px;border-width:2px}
  .setlist-heading p{font-size:8px;letter-spacing:1.2px}.setlist-heading h2{font-size:21px}
  .setlist-note{margin:10px 0;font-size:10px}.setlist-song strong{font-size:13px}.setlist-song small{font-size:10px}
+ .lineup-roster>div{grid-template-columns:62px minmax(0,1fr);gap:10px}
+ .lineup-roster dd{font-size:13px}
 }
 @media(max-width:600px) and (orientation:portrait) and (max-height:680px){
  .welcome-page:where(:has(#continueTicket:not([hidden]))){--lp-lift:-24px}
@@ -125,3 +133,4 @@ button,input{font:inherit}button,a,input{-webkit-tap-highlight-color:transparent
 }
 
 @media(max-width:360px) and (orientation:portrait){.welcome-page{--lp-lift:-16px;--title-lift:-6px;--details-drop:1px;--action-drop:6px}}
+@media(max-width:360px) and (orientation:portrait){.lineup-roster{margin-top:12px}.lineup-roster>div{grid-template-columns:58px minmax(0,1fr);gap:8px;padding:10px 0}.lineup-roster dd{gap:4px 8px;font-size:12px}}
