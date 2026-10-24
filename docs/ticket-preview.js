@@ -15,17 +15,12 @@ function draw(){
 function render(){if(!raf)raf=requestAnimationFrame(draw);}
 area.addEventListener('pointerdown',e=>{
  if(!e.isPrimary||e.button!==0)return;
- gesture={id:e.pointerId,x:e.clientX,y:e.clientY,angle:target,axis:null};
+ gesture={id:e.pointerId,x:e.clientX,angle:target};
  area.setPointerCapture(e.pointerId);
 });
 area.addEventListener('pointermove',e=>{
  if(!gesture||e.pointerId!==gesture.id)return;
- const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;
- if(!gesture.axis){
-  if(Math.max(Math.abs(dx),Math.abs(dy))<6)return;
-  gesture.axis=Math.abs(dx)>Math.abs(dy)?'x':'y';
- }
- if(gesture.axis!=='x')return;
+ const dx=e.clientX-gesture.x;
  target=gesture.angle+dx*.85;ticket.classList.add('dragging');render();
 });
 function end(e){
@@ -41,23 +36,4 @@ ticket.addEventListener('keydown',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();parent.postMessage({type:'jukebox-preview-close'},location.origin);}});
 draw();
-// This page has no issuance, restore, check-in, or submission controller.
-// The only backend operation is the public guestbook read.
-const api=new window.Jukebox.TicketAPI();
-const list=document.getElementById('previewMessages'),status=document.getElementById('previewMessagesStatus'),retry=document.getElementById('previewRetry');
-let loading=false;
-async function loadMessages(){
- if(loading)return;loading=true;retry.hidden=true;list.setAttribute('aria-busy','true');
- status.textContent='글을 불러오고 있어요.';
- try{
-  const data=await api.request('guestbook');
-  if(!Array.isArray(data?.messages))throw new Error('Invalid guestbook');
-  const messages=data.messages.filter(x=>typeof x==='string'&&x.trim()).reverse();
-  const fragment=document.createDocumentFragment();
-  for(const message of messages){const li=document.createElement('li');li.textContent=message;fragment.append(li);}
-  list.replaceChildren(fragment);status.textContent=messages.length?'':'아직 남겨진 글이 없어요.';
- }catch{status.textContent='글을 불러오지 못했어요. 다시 시도해 주세요.';retry.hidden=false;}
- finally{loading=false;list.setAttribute('aria-busy','false');}
-}
-retry.addEventListener('click',loadMessages);loadMessages();
 })();

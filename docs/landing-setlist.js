@@ -39,8 +39,8 @@ function openPanel(view,source){
  view.panel.hidden=false;
  if(view.mount){
   const frame=document.createElement('iframe');
-  frame.title='회전 가능한 티켓과 공개 방명록 미리보기';
-  frame.src='./ticket-preview.html?v=20261024-preview';
+  frame.title='회전 가능한 티켓 미리보기';
+  frame.src='./ticket-preview.html?v=20261024-ticketonly';
   view.mount.replaceChildren(frame);
  }
  screen.classList.add('is-panel-open');
