@@ -153,3 +153,20 @@ button,input{font:inherit}button,a,input{-webkit-tap-highlight-color:transparent
 .welcome-page .title-and{color:var(--cream);font-size:.84em}
 .welcome-page .title-beer{color:#f2ca7c;text-shadow:0 0 14px #f2ca7c24}
 .welcome-page .event-date-line{display:inline-block;font-size:.72em;line-height:1.5;font-weight:500;letter-spacing:1px;color:var(--cream)}
+
+/* This introduction sits before, and outside, the three purchase steps. */
+.notice-page{padding-top:18px}
+.notice-page h2{font-size:24px;letter-spacing:-.8px;line-height:1.35;margin:6px 0 14px}
+.purchase-notice-list{margin:0;padding:0}
+.purchase-notice-list>div{display:grid;grid-template-columns:66px minmax(0,1fr);gap:10px;padding:9px 0;border-bottom:1px solid #97e3cf1c}
+.purchase-notice-list>div:last-child{border-bottom:0}
+.purchase-notice-list dt{color:var(--mint);font-size:11px;font-weight:600;line-height:1.65}
+.purchase-notice-list dd{margin:0;color:var(--cream);font-size:12px;line-height:1.65;word-break:keep-all;overflow-wrap:anywhere}
+.notice-page .screen-navigation{margin-top:14px}
+@media(max-width:600px) and (orientation:portrait){
+ .notice-page{padding-top:12px}
+ .notice-page h2{font-size:22px;margin-bottom:10px}
+ .purchase-notice-list>div{grid-template-columns:58px minmax(0,1fr);gap:8px;padding:7px 0}
+ .purchase-notice-list dt{font-size:10px}
+ .purchase-notice-list dd{font-size:12px;line-height:1.55}
+}

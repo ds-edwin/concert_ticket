@@ -13,9 +13,10 @@ function saveDraft(){try{sessionStorage.setItem(draftKey,JSON.stringify({quantit
 try{const draft=JSON.parse(sessionStorage.getItem(draftKey)||'null');if(draft){quantity=Math.min(10,Math.max(1,Math.trunc(Number(draft.quantity))||1));$('payerInput').value=String(draft.payerInput||'').slice(0,44);$('purchaseConsent').checked=draft.consent===true;}}catch{}
 function drawQuantity(){$('quantityValue').textContent=quantity;$('minusButton').disabled=quantity===1||Boolean(order?.submitted);$('plusButton').disabled=quantity===10||Boolean(order?.submitted);$('quantityTotal').textContent=money(quantity*price);}
 function showStep(value,focus=true){
- step=Math.min(3,Math.max(0,value));
- document.querySelectorAll('[data-step]').forEach(el=>el.hidden=Number(el.dataset.step)!==step);
- $('stepProgress').hidden=step===0;
+ step=value==='notice'?'notice':Math.min(3,Math.max(0,value));
+ document.querySelectorAll('[data-step]').forEach(el=>el.hidden=el.dataset.step!==String(step));
+ $('stepProgress').hidden=step===0||step==='notice';
+ $('kioskContent').scrollTop=0;
  [...$('stepProgress').children].forEach((el,i)=>{el.classList.toggle('active',i+1===step);el.classList.toggle('done',i+1<step);if(i+1===step)el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');});
  drawQuantity();saveDraft();
  if(focus)document.querySelector('[data-step="'+step+'"] h1,[data-step="'+step+'"] h2')?.focus({preventScroll:true});
@@ -30,11 +31,11 @@ function payment(){
  $('paidButton').disabled=!bankReady;
  $('paymentNotice').textContent=bankReady?'':'입금 계좌가 등록되면 구매를 진행할 수 있어요.';
 }
-$('buyButton').addEventListener('click',()=>{if(order?.complete){localStorage.setItem(P.orderKey+':history:'+order.id,JSON.stringify(order));localStorage.removeItem(P.orderKey);order=null;quantity=1;}if(order?.submitted&&!order.complete){quantity=order.quantity;toast('진행 중인 구매를 이어서 확인합니다.');}showStep(1);});
+$('buyButton').addEventListener('click',()=>{if(order?.complete){localStorage.setItem(P.orderKey+':history:'+order.id,JSON.stringify(order));localStorage.removeItem(P.orderKey);order=null;quantity=1;}if(order?.submitted&&!order.complete){quantity=order.quantity;toast('진행 중인 구매를 이어서 확인합니다.');}showStep('notice');});
 $('minusButton').addEventListener('click',()=>{if(!order?.submitted)quantity=Math.max(1,quantity-1);drawQuantity();saveDraft();});
 $('plusButton').addEventListener('click',()=>{if(!order?.submitted)quantity=Math.min(10,quantity+1);drawQuantity();saveDraft();});
-document.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click',()=>{if(!busy)showStep(step-1);}));
-document.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>showStep(step+1)));
+document.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click',()=>{if(!busy)showStep(step==='notice'?0:step===1?'notice':step-1);}));
+document.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>showStep(step==='notice'?1:step+1)));
 $('payerInput').addEventListener('input',()=>{$('payerError').textContent='';$('payerInput').removeAttribute('aria-invalid');saveDraft();});
 $('purchaseConsent').addEventListener('change',saveDraft);
 $('payerForm').addEventListener('submit',e=>{
