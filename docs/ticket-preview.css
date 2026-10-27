@@ -3,7 +3,7 @@ html,body{height:100%;margin:0;background:transparent;overflow:hidden;overscroll
 body{color:#f4e9cd}.preview-main{height:100svh;max-width:none;padding:0 2px;margin:0}
 .preview-viewer{position:relative;height:100%;min-height:0;display:flex;flex-direction:column;margin:0;padding:0;user-select:none;-webkit-user-select:none}
 .preview-viewer .perspective{flex:1;min-height:0;padding:8px 0;perspective:6000px;touch-action:none;cursor:grab}
-.preview-viewer .ticket{width:min(94%,calc((100svh - 16px)*.6015));max-width:324px;touch-action:none;transform:rotateX(0deg) rotateY(-8deg);aspect-ratio:1449/2409}
+.preview-viewer .ticket{width:min(94%,calc((100svh - 16px)*.6015));max-width:324px;touch-action:none;transform:rotateX(0deg) rotateY(-18deg);aspect-ratio:1449/2409}
 .preview-viewer .ticket>.ticket-front,.preview-viewer .ticket>.ticket-back,.preview-viewer .ticket>.ticket-edge{clip-path:none}
 .preview-viewer .ticket-face,.preview-viewer .ticket-edge{border-radius:8px}
 .preview-controls{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:5}

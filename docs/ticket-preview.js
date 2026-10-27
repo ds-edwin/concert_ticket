@@ -9,20 +9,40 @@ function positionFlip(){
 const previewResize=new ResizeObserver(positionFlip);
 previewResize.observe(area);previewResize.observe(ticket);positionFlip();
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-let angle=-8,target=-8,raf=0,gesture=null;
-function draw(){
- angle=reduced?target:angle+(target-angle)*.22;
- if(Math.abs(target-angle)<.05)angle=target;
+const restingAngle=-18;
+let angle=restingAngle,target=restingAngle,raf=0,gesture=null;
+let cueActive=false,cueStart=null,interacted=false;
+function draw(time){
+ if(cueActive){
+  if(cueStart===null)cueStart=time;
+  const progress=Math.min((time-cueStart)/1800,1);
+  // A single slow turn demonstrates the gesture, then leaves the card angled.
+  angle=target=restingAngle+26*Math.pow(Math.sin(Math.PI*progress),2);
+  if(progress===1){cueActive=false;angle=target=restingAngle;}
+ }else{
+  angle=reduced?target:angle+(target-angle)*.22;
+  if(Math.abs(target-angle)<.05)angle=target;
+ }
  ticket.style.transform='rotateX(0deg) rotateY('+angle+'deg)';
  const back=Math.cos(angle*Math.PI/180)<0;
  ticket.querySelector('.ticket-front').setAttribute('aria-hidden',String(back));
  ticket.querySelector('.ticket-back').setAttribute('aria-hidden',String(!back));
- raf=angle===target?0:requestAnimationFrame(draw);
+ raf=cueActive||angle!==target?requestAnimationFrame(draw):0;
 }
 function render(){if(!raf)raf=requestAnimationFrame(draw);}
+function takeControl(freeze=false){
+ // Interrupt the cue from its visible pose; keep queued key/flip rotations intact.
+ if(cueActive||freeze)target=angle;
+ interacted=true;cueActive=false;
+}
+function startCue(){
+ if(reduced||interacted)return;
+ cueActive=true;cueStart=null;render();
+}
 area.addEventListener('pointerdown',e=>{
  if(!e.isPrimary||e.button!==0)return;
- gesture={id:e.pointerId,x:e.clientX,angle:target};
+ takeControl(true);
+ gesture={id:e.pointerId,x:e.clientX,angle};
  area.setPointerCapture(e.pointerId);
 });
 area.addEventListener('pointermove',e=>{
@@ -36,11 +56,14 @@ function end(e){
  if(area.hasPointerCapture(e.pointerId))area.releasePointerCapture(e.pointerId);
 }
 area.addEventListener('pointerup',end);area.addEventListener('pointercancel',end);area.addEventListener('lostpointercapture',end);
-document.getElementById('previewFlip').addEventListener('click',()=>{target=Math.round(target/180)*180+180;render();});
+document.getElementById('previewFlip').addEventListener('click',()=>{takeControl();target=Math.round(target/180)*180+180;render();});
 ticket.addEventListener('keydown',e=>{
  if(!['ArrowLeft','ArrowRight','Enter',' '].includes(e.key))return;
- e.preventDefault();target+=e.key==='ArrowLeft'?-30:e.key==='ArrowRight'?30:180;render();
+ e.preventDefault();takeControl();target+=e.key==='ArrowLeft'?-30:e.key==='ArrowRight'?30:180;render();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();parent.postMessage({type:'jukebox-preview-close'},location.origin);}});
-draw();
+draw(0);
+// Wait for the poster so the cue remains visible on a slower connection.
+const art=ticket.querySelector('.ticket-art');
+if(art.complete)startCue();else art.addEventListener('load',startCue,{once:true});
 })();
