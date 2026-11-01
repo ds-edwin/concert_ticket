@@ -5,21 +5,29 @@ let current=null;
 // Remove the retired information strip if an older HTML document is cached.
 document.querySelectorAll('.event-strip').forEach(el=>el.remove());
 const urlToken=new URLSearchParams(location.hash.slice(1)).get('ticket');
+const group=window.JukeboxRegistrationLinks?.readGroup()||null;
+if(group){
+ $('registration').before($('ticketSharing'));
+ const description=document.querySelector('.registration-copy>p:not(.eyebrow)');
+ if(description)description.textContent='이름과 전화번호 뒤 4자리를 입력해 주세요. 추가 입금 절차 없이 본인 티켓을 등록합니다.';
+}
 function render(detail){
  current=detail||null;
  $('ticketSharing').hidden=true;
  if(!current)return;
  $('ticketLinkStatus').hidden=true;
  const order=P.findOrder(current.token),isOwner=order?.tokens.includes(current.token);
+ const tokens=group||(isOwner?order.tokens:null);
  $('ticketChoices').replaceChildren();
- if(isOwner&&order.quantity>1){
+ if(tokens&&tokens.length>1){
   $('ticketSharing').hidden=false;
-  $('shareDescription').textContent='티켓 '+order.quantity+'장의 링크를 한 분씩 보내주세요. 받는 분이 직접 이름을 등록합니다.';
-  order.tokens.forEach((token,i)=>{
+  $('shareTitle').textContent=group?'티켓 정보 입력 · 총 '+tokens.length+'장':'함께 오시는 분들에게 공유해주세요';
+  $('shareDescription').textContent=group?'번호를 선택해 한 분씩 등록해 주세요. 아래 공유 버튼은 선택한 티켓 한 장의 링크를 보냅니다.':'티켓 '+tokens.length+'장의 링크를 한 분씩 보내주세요. 받는 분이 직접 이름을 등록합니다.';
+  tokens.forEach((token,i)=>{
    
-   const a=document.createElement('a');a.href=P.ticketUrl(token);
-   const cached=P.readTicket(token)?.ticket;
-   a.textContent=(i+1)+'번 티켓'+(cached?.serial?' · No. '+String(cached.serial).padStart(4,'0'):' · 이름 등록하기');
+   const a=document.createElement('a');a.href=group?window.JukeboxRegistrationLinks.groupUrl(group,token):P.ticketUrl(token);
+   const cached=token===current.token&&current.ticket?current.ticket:P.readTicket(token)?.ticket;
+   a.textContent=(i+1)+'번 티켓'+(cached?.serial?' · No. '+String(cached.serial).padStart(4,'0'):(group?' · 입력 / 확인':' · 이름 등록하기'));
    if(token===current.token){a.className='selected';a.setAttribute('aria-current','page');}
    $('ticketChoices').append(a);
   });
@@ -40,9 +48,10 @@ $('shareTicket').addEventListener('click',async()=>{
 window.addEventListener('jukebox:ticket',e=>render(e.detail));
 window.addEventListener('jukebox:ticket-missing',()=>{if(P.tokenPattern.test(urlToken)){render({token:urlToken});$('registration').hidden=false;}else render(null);});
 window.addEventListener('jukebox:ticket-unclaimed',e=>{render(e.detail);$('registration').hidden=false;});
-window.addEventListener('jukebox:ticket-error',e=>{if(!current){$('ticketLinkStatus').hidden=false;$('ticketLinkStatus').textContent=e.detail||'티켓을 불러오지 못했어요. 아래 내 티켓 다시 확인을 눌러주세요.';}});
+window.addEventListener('jukebox:ticket-error',e=>{if(!current?.ticket){$('ticketLinkStatus').hidden=false;$('ticketLinkStatus').textContent=e.detail||'티켓을 불러오지 못했어요. 아래 내 티켓 다시 확인을 눌러주세요.';}});
 if(urlToken){$('registration').hidden=true;$('ticketLinkStatus').hidden=false;if(!P.tokenPattern.test(urlToken))$('ticketLinkStatus').textContent='올바르지 않은 티켓 링크예요. 공유해 준 분에게 다시 받아주세요.';}
 render(window.Jukebox.currentTicket);
+if(group&&!window.Jukebox.currentTicket){render({token:urlToken});$('ticketLinkStatus').hidden=false;}
 if(!urlToken&&!window.Jukebox.currentTicket)$('ticketLinkStatus').hidden=true;
 // Switching tickets reloads the controller so rotations/check state never cross tickets.
 window.addEventListener('hashchange',()=>location.reload());

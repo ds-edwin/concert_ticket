@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#171311"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+<title>티켓 정보 입력 링크 · JUKEBOX</title>
+<link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./landing.css?v=20261027-notice">
+<link rel="stylesheet" href="./paid-tickets.css?v=20261101-registration">
+<script defer src="./config.js?v=20261022-bank"></script>
+<script defer src="./api.js?v=20261022-reliable2"></script>
+<script defer src="./purchase.js?v=20261022-share"></script>
+<script defer src="./registration-links.js?v=20261101-registration"></script>
+<script defer src="./paid-tickets.js?v=20261101-registration"></script>
+</head>
+<body class="link-tool">
+<main class="paid-link-page">
+<header><p class="tool-brand">JUKEBOX · Neon and beer</p><h1>티켓 정보 입력 링크</h1><p class="tool-description">입금한 분에게 보낼 티켓 수를 선택해 주세요.<br>받는 분은 링크에서 이름과 전화번호 뒤 4자리를 등록합니다.</p></header>
+<section class="link-card" aria-labelledby="quantityHeading">
+<h2 id="quantityHeading">몇 장을 보내실까요?</h2>
+<div class="quantity-control"><button id="linkMinus" type="button" aria-label="티켓 1장 줄이기">−</button><div><output id="linkQuantity" aria-live="polite">1</output><span>장</span></div><button id="linkPlus" type="button" aria-label="티켓 1장 늘리기">+</button></div>
+<p class="quantity-limit">최소 1장 · 최대 10장</p>
+<button id="createShareLink" class="kiosk-primary" type="button">공유하기 <span aria-hidden="true">↗</span></button>
+<p class="tool-note">입금이 끝난 분에게 보내는 등록용 링크입니다. 추가 입금 절차는 없습니다.</p>
+<p id="linkToolStatus" class="tool-status" role="status" aria-live="polite"></p>
+<section id="linkResult" class="link-result" hidden aria-labelledby="linkResultTitle">
+<h3 id="linkResultTitle">등록 링크</h3>
+<label for="registrationUrl">받는 분에게 보낼 주소</label>
+<textarea id="registrationUrl" rows="3" readonly spellcheck="false"></textarea>
+<div class="link-actions"><button id="copyRegistrationUrl" type="button">링크 복사</button><a id="openRegistrationUrl" target="_blank" rel="noopener">입력 페이지 열기 ↗</a></div>
+<p class="tool-note">같은 링크를 다시 보내면 같은 티켓이 열립니다. 다른 분에게 별도 티켓을 보내려면 새 링크를 만들어 주세요.</p>
+<button id="newRegistrationLink" class="new-link" type="button">새 링크 만들기 ＋</button>
+</section>
+</section>
+<section id="registrationHistory" class="link-history" hidden aria-labelledby="historyHeading"><h2 id="historyHeading">최근 만든 링크</h2><p class="tool-note">이 브라우저에서 만든 링크를 다시 복사하거나 공유할 수 있어요.</p><ul id="registrationHistoryList"></ul></section>
+</main>
+</body></html>
