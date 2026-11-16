@@ -449,26 +449,6 @@
   card.addEventListener('keydown',e=>{if(cutArmed || checking){e.preventDefault();if(e.key==='Escape'&&!checking)setCutArmed(false);return;}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter',' '].includes(e.key))e.preventDefault();if(e.key==='Enter'||e.key===' ')openPanel();if(e.key==='ArrowLeft')rotation.y.target-=20;if(e.key==='ArrowRight')rotation.y.target+=20;if(e.key==='ArrowUp')rotation.x.target=Math.min(48,rotation.x.target+10);if(e.key==='ArrowDown')rotation.x.target=Math.max(-48,rotation.x.target-10);if(e.key.toLowerCase()==='r')reset();animate();});
   $('flipButton').addEventListener('click',()=>{rotation.y.target=Math.round(rotation.y.target/180)*180+180;rotation.x.target=0;rotation.z.target=0;animate();});
   $('resetButton').addEventListener('click',reset);
-  $('downloadButton').addEventListener('click',async()=>{
-    if(!issuedTicket)return;
-    try{
-      const img=card.querySelector('img');await img.decode();
-      const canvas=document.createElement('canvas');
-      canvas.width=img.naturalWidth;
-      canvas.height=Math.round(img.naturalHeight/.85);
-      const ctx=canvas.getContext('2d'), w=canvas.width, h=canvas.height, cut=img.naturalHeight;
-      ctx.fillStyle='#130f25';ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,cut);
-      ctx.strokeStyle='#e66aaf';ctx.lineWidth=w*.002;ctx.setLineDash([w*.012,w*.01]);ctx.beginPath();ctx.moveTo(w*.035,cut);ctx.lineTo(w*.965,cut);ctx.stroke();ctx.setLineDash([]);
-      ctx.fillStyle='#b5a5c5';ctx.font=`${w*.02}px sans-serif`;ctx.fillText('ADMIT ONE · 자유석',w*.07,h*.89);ctx.textAlign='right';ctx.fillText('2026.11.21',w*.93,h*.89);
-      ctx.textAlign='left';ctx.fillStyle='#a494b7';ctx.font=`${w*.019}px sans-serif`;ctx.fillText('TICKET HOLDER',w*.07,h*.925);ctx.textAlign='right';ctx.fillText('LIMITED EDITION',w*.93,h*.925);
-      ctx.textAlign='left';ctx.fillStyle='#f9d6ec';ctx.font=`600 ${w*.04}px sans-serif`;ctx.fillText(issuedTicket.name,w*.07,h*.956,w*.48);
-      ctx.textAlign='right';ctx.fillStyle='#ff80bd';ctx.font=`${w*.042}px monospace`;ctx.fillText(issuedTicket.preview?'SAMPLE':`No. ${String(issuedTicket.serial).padStart(4,'0')}`,w*.93,h*.956);
-      ctx.globalCompositeOperation='destination-out';
-      for(const x of [0,w]){ctx.beginPath();ctx.arc(x,cut,w*.022,0,Math.PI*2);ctx.fill();}
-      ctx.globalCompositeOperation='source-over';
-      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw new Error();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`JUKEBOX-${issuedTicket.preview?'SAMPLE':String(issuedTicket.serial).padStart(4,'0')}.png`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('티켓 이미지를 저장했습니다.');
-    }catch{toast('이미지 저장에 실패했어요. 다시 시도해 주세요.');}
-  });
   async function init(){
     $('previewBanner').hidden=!api.preview;
     $('restoreArea').hidden=api.preview;

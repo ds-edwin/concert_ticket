@@ -18,7 +18,7 @@ async function app(options={}){
   let relative=decodeURIComponent(new URL(route.request().url()).pathname.slice('/concert_ticket/'.length))||'index.html';
   const file=path.resolve(root,relative);
   if(!file.startsWith(root+path.sep))return route.abort();
-  try{const body=await fs.readFile(file);await route.fulfill({body,contentType:({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'})[path.extname(file)]||'application/octet-stream'});}
+  try{const body=await fs.readFile(file);await route.fulfill({body,contentType:({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpeg':'image/jpeg'})[path.extname(file)]||'application/octet-stream'});}
   catch{await route.fulfill({status:404,body:'Not found'});}
  });
  await context.route('https://script.google.com/**',async route=>{
@@ -187,5 +187,29 @@ test('single-ticket owners see no sharing section and returning visitors keep on
   await waitFor(a.page,()=>document.querySelectorAll('#guestbookList li').length===5);
   await a.page.locator('#moreGuestbook').click();assert.equal(await a.page.locator('#guestbookList li').count(),6);
   assert.equal(await a.page.locator('.event-strip').count(),0);
+ }finally{await a.close();}
+});
+
+test('ticket image saves as a decodable JPEG with the original width and the numbered stub',async()=>{
+ const a=await app();
+ try{
+  await register(a.page);
+  await a.page.locator('#downloadButton').click();
+  await a.page.locator('#exportDownload').waitFor({state:'visible'});
+  const expected=await a.page.evaluate(async()=>{
+   const poster=document.querySelector('#ticket .ticket-art'),out=document.getElementById('exportImage');
+   await out.decode();
+   if(out.naturalWidth!==poster.naturalWidth||out.naturalHeight!==Math.round(poster.naturalHeight/.85))throw Error('Wrong export dimensions');
+   return out.src;
+  });
+  const [download]=await Promise.all([a.page.waitForEvent('download'),a.page.locator('#exportDownload').click()]);
+  assert.equal(download.suggestedFilename(),'JUKEBOX-0001.jpg');
+  const bytes=await fs.readFile(await download.path());
+  assert.equal(bytes.subarray(0,3).toString('hex'),'ffd8ff');
+  assert.equal(bytes.subarray(-2).toString('hex'),'ffd9');
+  assert.equal('data:image/jpeg;base64,'+bytes.toString('base64'),expected);
+  await a.page.locator('#exportClose').click();
+  assert.equal(await a.page.locator('#exportPanel').isVisible(),false);
+  assert.equal(a.calls.filter(q=>q.action==='issue').length,1);
  }finally{await a.close();}
 });

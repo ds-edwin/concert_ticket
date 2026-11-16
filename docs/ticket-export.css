@@ -1,0 +1,12 @@
+.ticket-export{max-width:600px;margin:16px auto;padding:18px;border:1px solid #97e3cf44;border-radius:14px;background:#191624;color:#f7f4f9}
+.ticket-export[hidden],.ticket-export [hidden]{display:none!important}
+.ticket-export header,.export-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ticket-export header{justify-content:space-between}
+.ticket-export h2{margin:0;font-size:19px}
+.ticket-export img{display:block;width:auto;height:auto;max-width:100%;max-height:68vh;max-height:68svh;margin:12px auto;border-radius:4px;-webkit-touch-callout:default}
+.ticket-export :is(a,button){display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 13px;border:1px solid #8a94a955;border-radius:8px;background:#282336;color:#e7e6ed;font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
+.ticket-export #exportShare,.ticket-export #exportDownload{background:#233b36;color:#abf2db;border-color:#83d4bf66}
+.ticket-export p,.ticket-export summary{font-size:13px;line-height:1.6}
+.ticket-export details{margin-top:12px}
+.ticket-export summary{cursor:pointer;padding:8px 0}
+.ticket-export input{width:100%;margin-top:8px}
