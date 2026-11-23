@@ -21,13 +21,13 @@ function render(detail){
  $('ticketChoices').replaceChildren();
  if(tokens&&tokens.length>1){
   $('ticketSharing').hidden=false;
-  $('shareTitle').textContent=group?'티켓 정보 입력 · 총 '+tokens.length+'장':'함께 오시는 분들에게 공유해주세요';
-  $('shareDescription').textContent=group?'번호를 선택해 한 분씩 등록해 주세요. 아래 공유 버튼은 선택한 티켓 한 장의 링크를 보냅니다.':'티켓 '+tokens.length+'장의 링크를 한 분씩 보내주세요. 받는 분이 직접 이름을 등록합니다.';
+  $('shareTitle').textContent=group?'내 티켓 · 총 '+tokens.length+'장':'발급된 티켓 확인';
+  $('shareDescription').textContent=group?'번호를 선택해 기존에 발급된 티켓을 확인해 주세요.':'티켓 '+tokens.length+'장 중 확인할 번호를 선택해 주세요. 신규 발급은 종료되었습니다.';
   tokens.forEach((token,i)=>{
    
    const a=document.createElement('a');a.href=group?window.JukeboxRegistrationLinks.groupUrl(group,token):P.ticketUrl(token);
    const cached=token===current.token&&current.ticket?current.ticket:P.readTicket(token)?.ticket;
-   a.textContent=(i+1)+'번 티켓'+(cached?.serial?' · No. '+String(cached.serial).padStart(4,'0'):(group?' · 입력 / 확인':' · 이름 등록하기'));
+   a.textContent=(i+1)+'번 티켓'+(cached?.serial?' · No. '+String(cached.serial).padStart(4,'0'):(group?' · 확인':' · 확인'));
    if(token===current.token){a.className='selected';a.setAttribute('aria-current','page');}
    $('ticketChoices').append(a);
   });

@@ -36,6 +36,7 @@ function environment(){
     Utilities:{DigestAlgorithm:{SHA_256:'sha256'},Charset:{UTF_8:'utf8'},computeDigest:(_,s)=>Array.from(crypto.createHash('sha256').update(s).digest())}
   });
   vm.runInContext(code,context);
+  context.SERVICE_CLOSED_=false; // Historical behavior tests; closure is tested explicitly below.
   return {context,data,deposits,guestRows,songs,props,events,call:(action,payload={},origin='https://ds-edwin.github.io')=>context.bridgeRequest(action,payload,origin),setup:()=>{settingUp=true;try{return context.setup();}finally{settingUp=false;}},contend:()=>contended=true,failPropertyOnce:()=>propertyFailure=true};
 }
 
@@ -143,6 +144,21 @@ test('purchase remains one row with quantity while attendees register separately
 test('all frontend files parse',()=>{
  for(const file of ['app.js','landing.js','sharing.js','purchase.js','guestbook.js','server-update.js','api.js'])
  new vm.Script(fs.readFileSync(path.join(__dirname,'../docs',file),'utf8'));
+});
+test('closed service rejects fresh issuance and deposits but restores existing tickets',()=>{
+ const e=environment(),payload=input(),issued=e.call('issue',payload);
+ assert.equal(issued.ok,true);
+ e.context.SERVICE_CLOSED_=true;
+ const length=e.data.length;
+ assert.equal(e.call('issue',input()).code,'CLOSED');
+ assert.equal(httpCall(e,'issue',input()).code,'CLOSED');
+ assert.equal(httpCall(e,'deposit',{orderToken:crypto.randomUUID(),name:'관객',phoneLast4:'0007',quantity:1}).code,'CLOSED');
+ assert.equal(e.call('restore',{token:payload.token}).data.serial,issued.data.serial);
+ assert.equal(httpCall(e,'restore',{token:payload.token}).data.serial,issued.data.serial);
+ assert.equal(e.call('issue',payload).data.serial,issued.data.serial);
+ assert.equal(e.call('restore',{token:crypto.randomUUID()}).data,null);
+ assert.equal(e.data.length,length);
+ assert.equal(e.deposits.length,0);
 });
 let passed=0;for(const [name,fn]of tests){try{fn();passed++;console.log('PASS '+name);}catch(e){console.error('FAIL '+name);console.error(e);process.exitCode=1;}}
 console.log(passed+'/'+tests.length+' behavioral checks passed');

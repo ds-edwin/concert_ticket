@@ -15,11 +15,18 @@
   <link rel="stylesheet" href="./sharing.css?v=20261022-compact">
   <script defer src="./purchase.js?v=20261022-share"></script>
   <script defer src="./registration-links.js?v=20261101-registration"></script>
-  <script defer src="./sharing.js?v=20261101-registration"></script>
-  <script defer src="./app.js?v=20261116-image"></script>
+  <script defer src="./sharing.js?v=20261123-closed"></script>
+  <script defer src="./app.js?v=20261123-closed"></script>
   <link rel="stylesheet" href="./ticket-export.css?v=20261116-image">
   <script defer src="./ticket-export.js?v=20261116-image"></script>
   <script defer src="./guestbook.js?v=20261022-reliable"></script>
+<style>
+#registration { display:none !important; }
+html:not([data-issued-ticket]) .ticket-stage { display:none; }
+.service-closed { margin:24px auto; padding:20px; max-width:680px; line-height:1.7; }
+.service-closed h2 { font-size:1.15rem; margin:0 0 8px; }
+.service-closed p { margin:0; opacity:.8; font-size:.9rem; }
+</style>
 </head>
 <body>
   <div class="atmosphere" aria-hidden="true"><div class="orb orb-pink"></div><div class="orb orb-blue"></div><div class="floor-grid"></div></div>
@@ -75,6 +82,7 @@
         <div class="panel-foot"><span class="waveform" aria-hidden="true">▂ ▅ ▃ ▇ ▄ ▂ ▆ ▃</span><p>좋아하는 노래가 흐를 때,<br>함께 불러주세요.</p></div>
       </aside>
     </div>
+    <section class="service-closed" aria-labelledby="closedTitle"><h2 id="closedTitle">기존 티켓 확인</h2><p>티켓 구매와 신규 발급이 종료되었습니다.<br>발급 당시 사용한 브라우저 또는 개인 티켓 링크로 확인해 주세요.<br>입금 후 티켓을 발급받지 못하셨거나 링크를 잃어버리셨다면 주최 측에 문의해 주세요.</p></section>
     <section class="registration" id="registration" aria-labelledby="registrationTitle">
       <div class="registration-copy"><p class="eyebrow">MAKE IT YOURS</p><h2 id="registrationTitle">이 티켓의 주인은?</h2><p>이름과 연락처 뒤 4자리를 입력하고<br>나의 티켓 받기를 눌러 등록을 완료하세요.</p><div class="capacity"><span class="status-dot"></span><span id="capacityText">총 1,000장의 고유 번호 티켓</span></div></div>
       <form id="ticketForm" novalidate>
@@ -105,7 +113,7 @@
       <p id="shareStatus" role="status" aria-live="polite"></p>
     </section>
     <div class="ticket-link-status" id="ticketLinkStatus" role="status" hidden>티켓을 확인하고 있어요.</div>
-    <p class="ticket-home"><a href="./">← 티켓 구입 화면</a></p>
+    <p class="ticket-home"><a href="./">← 처음 화면</a></p>
     <div id="restoreArea" class="restore-area" hidden><button type="button" id="restoreButton" class="text-button">내 티켓 다시 확인 ↻</button><p id="restoreStatus" class="form-status" role="status" aria-live="polite"></p></div>
     <section class="guestbook" aria-labelledby="guestbookTitle">
       <div class="guestbook-heading"><h2 id="guestbookTitle">남기고 싶은 말</h2><button id="refreshGuestbook" type="button" aria-label="남기고 싶은 말 새로고침">새로고침 ↻</button></div>

@@ -40,6 +40,7 @@
   function showTicket(ticket, celebrate = false) {
     if (!ticket || typeof ticket.name !== 'string' || (!ticket.preview && (!Number.isInteger(ticket.serial) || ticket.serial < 1 || ticket.serial > 1000))) throw new Error('잘못된 발급 응답입니다.');
     issuedTicket = ticket;
+    document.documentElement.setAttribute('data-issued-ticket','true');
     window.Jukebox.currentTicket = { token: local.token, ticket };
     window.dispatchEvent(new CustomEvent('jukebox:ticket', { detail: window.Jukebox.currentTicket }));
     if (ticket.checked === true) delete local.pendingCheck;
@@ -70,28 +71,14 @@
       const dot = document.createElement('i'); dot.className = 'confetti-dot'; dot.style.left = `${45 + Math.random()*10}%`; dot.style.top='45%'; dot.style.background = i%2 ? '#ff68b3' : '#4bd4fb'; dot.style.setProperty('--dx',`${(Math.random()-.5)*600}px`); dot.style.setProperty('--dy',`${120+Math.random()*350}px`); document.body.append(dot); setTimeout(()=>dot.remove(),1900);
     }
   }
-  $('ticketForm').addEventListener('submit', async event => {
-    event.preventDefault(); if ((linkedToken && !validLinkedToken) || busy || soldOut) return;
-    if (restoring) { $('formStatus').textContent = '기존 발급 기록을 확인 중이에요. 잠시 후 다시 눌러 주세요.'; return; }
-    $('formStatus').textContent = '';
-    const payload = validate(); if (!payload) return;
-    if (!persistent && !api.preview) { $('formStatus').textContent = '이 브라우저의 저장 공간을 사용할 수 없어요. 중복 발급 방지를 위해 일반 브라우저에서 저장 기능을 허용한 뒤 다시 열어 주세요.'; return; }
-    busy=true; $('issueButton').disabled=true; $('issueLabel').textContent = api.preview ? '샘플 준비 중…' : '당신의 번호를 새기는 중…';
-    try {
-      const ticket = api.preview ? { name: payload.name, preview:true } : await api.issue(payload, () => {
-        $('issueLabel').textContent = '발급 기록 확인 중…';
-        $('formStatus').textContent = '응답이 늦어 기존 발급 기록을 확인하고 있어요. 잠시만 기다려 주세요.';
-      });
-      showTicket(ticket,true);
-      $('formStatus').textContent = '';
-    } catch (e) {
-      $('formStatus').textContent = e.message || '발급 결과를 확인하지 못했어요. 다시 시도해 주세요.';
-      if (e.code === 'SOLD_OUT') { soldOut = true; $('capacityText').textContent = '1,000장 발급이 모두 마감되었습니다.'; }
-    } finally { busy=false; $('issueButton').disabled=soldOut; $('issueLabel').textContent = soldOut ? '발급 마감' : api.preview ? '샘플 티켓 보기' : '나의 티켓 받기'; }
+  $('ticketForm').addEventListener('submit', event => {
+    event.preventDefault();
+    $('formStatus').textContent = '신규 티켓 발급이 종료되었습니다.';
   });
   // Only a successful, explicit missing-record response may clear a cached ticket.
   function clearDeletedTicket() {
     issuedTicket = null;
+    document.documentElement.removeAttribute('data-issued-ticket');
     window.Jukebox.currentTicket = null;
     window.dispatchEvent(new CustomEvent('jukebox:ticket-missing'));
     checkRevision++;
@@ -122,7 +109,7 @@
     $('issueLabel').textContent = '나의 티켓 받기';
     syncStub();
     reset();
-    $('restoreStatus').textContent = '발급 기록이 삭제되어 초기 화면으로 돌아왔어요. 다시 티켓을 발급받을 수 있습니다.';
+    $('restoreStatus').textContent = '발급된 티켓을 찾지 못했어요. 신규 발급은 종료되었습니다. 주최 측에 문의해 주세요.';
   }
   function restoreTicket(silent = false) {
     if (linkedToken && !validLinkedToken) {

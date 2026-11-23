@@ -3,6 +3,7 @@
  * All helpers end with _ so google.script.run cannot call them directly.
  * Never publish the registration sheet or include its rows in frontend files.
  */
+var SERVICE_CLOSED_ = true;
 var CAPACITY_ = 1000;
 var REGISTRATION_SHEET_ = '참석자';
 var SETLIST_SHEET_ = '셋리스트';
@@ -146,6 +147,7 @@ function issue_(payload) {
   try {
     var sheet=registration_();var rows=rows_(sheet);var requestHash=hash_(input.token);
     var previous=findRequest_(rows,requestHash); if(previous)return previous;
+    if(SERVICE_CLOSED_)fail_('CLOSED','티켓 구매와 신규 발급이 종료되었습니다. 기존 티켓만 확인할 수 있습니다.');
     var current=maxIssued_(rows);if(current>=CAPACITY_)fail_('SOLD_OUT','1,000장의 티켓 발급이 모두 마감되었습니다.');
     var serial=current+1;var now=new Date();var index=sheet.getLastRow()+1;
     // Contact suffix is TEXT: "0007" must remain four characters.
@@ -232,6 +234,7 @@ function doPost(e) {
 
 /** One row per purchase. This is a customer deposit declaration, not bank verification. */
 function recordDeposit_(payload) {
+  if(SERVICE_CLOSED_)fail_('CLOSED','티켓 구매가 종료되었습니다.');
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) fail_('VALIDATION','입금 정보를 확인해 주세요.');
   var input=validateInput_({token:payload.orderToken,name:payload.name,phoneLast4:payload.phoneLast4,message:''});
   if (!Number.isInteger(payload.quantity) || payload.quantity<1 || payload.quantity>10) fail_('VALIDATION','매수는 1~10장이어야 합니다.');
